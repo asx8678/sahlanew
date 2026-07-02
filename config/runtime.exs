@@ -23,9 +23,19 @@ end
 config :sahla, SahlaWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
 if config_env() == :prod do
-  # Fail fast: every required secret must be present in the environment.
-  # `System.fetch_env!/1` raises with the variable name if it is missing.
-  database_url = System.fetch_env!("DATABASE_URL")
+  # Fail fast: every required secret must be present in the environment
+  # (/etc/sahla/app.env in production), with an error that names the
+  # variable and shows an example value.
+  required! = fn var, example ->
+    System.get_env(var) ||
+      raise """
+      environment variable #{var} is missing.
+      Example: #{var}=#{example}
+      Production reads it from /etc/sahla/app.env (see ops/).
+      """
+  end
+
+  database_url = required!.("DATABASE_URL", "ecto://sahla:pass@127.0.0.1/sahla_prod")
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
@@ -40,15 +50,36 @@ if config_env() == :prod do
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you
   # want to use a different value for prod, provided via the environment.
-  secret_key_base = System.fetch_env!("SECRET_KEY_BASE")
+  secret_key_base = required!.("SECRET_KEY_BASE", "$(mix phx.gen.secret)")
 
-  host = System.fetch_env!("PHX_HOST")
+  host = required!.("PHX_HOST", "example.ma")
 
-  # Cloak vault key (base64-encoded AES key). Read into config only here; the
-  # vault/cipher wiring lives in the security-compliance.cloak-setup task.
-  config :sahla, :cloak_key, System.fetch_env!("CLOAK_KEY")
+  # Cloak vault key (base64-encoded 32-byte AES key). Read into config only
+  # here; the vault/cipher wiring lives in security-compliance.cloak-setup.
+  config :sahla, :cloak_key, required!.("CLOAK_KEY", "$(openssl rand -base64 32)")
 
   config :sahla, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
+
+  # Integration settings (Appendix B). All optional at boot: integrations
+  # default to their Fake adapter / disabled state until both the secret is
+  # present AND the matching settings feature flag is enabled (Lessons —
+  # external-provider pattern). Consuming tasks read these config keys.
+  config :sahla, :sms,
+    provider: System.get_env("SMS_PROVIDER", "fake"),
+    api_key: System.get_env("SMS_API_KEY"),
+    sender: System.get_env("SMS_SENDER")
+
+  config :sahla, :postmark_api_key, System.get_env("POSTMARK_API_KEY")
+
+  config :sahla, :turnstile,
+    site_key: System.get_env("TURNSTILE_SITE_KEY"),
+    secret: System.get_env("TURNSTILE_SECRET")
+
+  config :sahla, :uploads_dir, System.get_env("UPLOADS_DIR", "/opt/sahla/shared/uploads")
+
+  config :sahla, :sentry_dsn, System.get_env("SENTRY_DSN")
+
+  config :sahla, :plausible_domain, System.get_env("PLAUSIBLE_DOMAIN")
 
   config :sahla, SahlaWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Runs pending migrations from inside the release (no Mix on the server).
+# Copied into the release root by mix release (rel/overlays), so it sits
+# next to bin/sahla. Called by deploy.sh before the current-symlink flip.
+set -eu
+exec "$(dirname "$0")/sahla" eval "Sahla.Release.migrate()"

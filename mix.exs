@@ -11,7 +11,20 @@ defmodule Sahla.MixProject do
       aliases: aliases(),
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
-      listeners: [Phoenix.CodeReloader]
+      listeners: [Phoenix.CodeReloader],
+      releases: releases()
+    ]
+  end
+
+  # Self-contained release (bundles ERTS) so the server needs no
+  # Erlang/Elixir/Node installed. rel/overlays/ is copied into the
+  # release root (bin/migrate wrapper).
+  defp releases do
+    [
+      sahla: [
+        include_executables_for: [:unix],
+        applications: [runtime_tools: :permanent]
+      ]
     ]
   end
 
