@@ -13,12 +13,18 @@ config :sahla, Sahla.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 
+# Run Oban jobs inline (no poller/queues/plugins) so tests are deterministic.
+config :sahla, Oban, testing: :inline
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :sahla, SahlaWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   secret_key_base: "M77/yIuN10HUqunYzkVn/8pNJugLr15KbWklGVJa676szL8nCABHFKtBE7xFlUOd",
   server: false
+
+# Weak Argon2 parameters keep password-hashing tests fast (never used in prod).
+config :argon2_elixir, t_cost: 1, m_cost: 8
 
 # In test we don't send emails
 config :sahla, Sahla.Mailer, adapter: Swoosh.Adapters.Test

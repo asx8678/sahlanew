@@ -8,7 +8,8 @@ defmodule Sahla.RuntimeConfigTest do
     "DATABASE_URL" => "ecto://sahla:secret@127.0.0.1/sahla_cfg_test",
     "SECRET_KEY_BASE" => String.duplicate("s", 64),
     "PHX_HOST" => "sahla.example",
-    "CLOAK_KEY" => Base.encode64(:binary.copy(<<1>>, 32))
+    "CLOAK_KEY" => Base.encode64(:binary.copy(<<1>>, 32)),
+    "HMAC_KEY" => "hmac-lookup-key"
   }
 
   @optional %{
@@ -67,7 +68,15 @@ defmodule Sahla.RuntimeConfigTest do
     assert repo[:url] == @required["DATABASE_URL"]
     assert repo[:pool_size] == 7
 
-    assert sahla[:cloak_key] == @required["CLOAK_KEY"]
+    vault = Keyword.fetch!(sahla, Sahla.Vault)
+    assert [default: {Cloak.Ciphers.AES.GCM, cipher_opts}] = vault[:ciphers]
+    assert cipher_opts[:key] == :binary.copy(<<1>>, 32)
+    assert cipher_opts[:tag] == "AES.GCM.V1"
+
+    assert Keyword.fetch!(sahla, Sahla.Hashed.HMAC) == [
+             algorithm: :sha256,
+             secret: "hmac-lookup-key"
+           ]
 
     assert sahla[:sms] == [provider: "infobip", api_key: "sms-api-key", sender: "SENDERID"]
     assert sahla[:postmark_api_key] == "pm-key"
@@ -89,6 +98,18 @@ defmodule Sahla.RuntimeConfigTest do
     assert sahla[:uploads_dir] == "/opt/sahla/shared/uploads"
     assert Keyword.fetch!(sahla, Sahla.Repo)[:pool_size] == 15
     refute Keyword.fetch!(sahla, SahlaWeb.Endpoint)[:server]
+  end
+
+  test "a malformed CLOAK_KEY (wrong size or not base64) raises a clear error" do
+    put_all_env()
+
+    for bad <- [Base.encode64("too short"), "not-base64!!!"] do
+      System.put_env("CLOAK_KEY", bad)
+
+      assert_raise RuntimeError, ~r/CLOAK_KEY must be a base64-encoded 32-byte/, fn ->
+        read_prod_config()
+      end
+    end
   end
 
   for var <- Map.keys(@required) do

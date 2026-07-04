@@ -27,7 +27,7 @@ defmodule SahlaWeb.CoreComponents do
 
   """
   use Phoenix.Component
-  use Gettext, backend: SahlaWeb.Gettext
+  use Gettext, backend: Sahla.Gettext
 
   alias Phoenix.HTML.Form
   alias Phoenix.LiveView.JS
@@ -484,9 +484,9 @@ defmodule SahlaWeb.CoreComponents do
     # with our gettext backend as first argument. Translations are
     # available in the errors.po file (as we use the "errors" domain).
     if count = opts[:count] do
-      Gettext.dngettext(SahlaWeb.Gettext, "errors", msg, msg, count, opts)
+      Gettext.dngettext(Sahla.Gettext, "errors", msg, msg, count, opts)
     else
-      Gettext.dgettext(SahlaWeb.Gettext, "errors", msg, opts)
+      Gettext.dgettext(Sahla.Gettext, "errors", msg, opts)
     end
   end
 

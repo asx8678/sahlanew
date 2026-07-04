@@ -13,11 +13,21 @@ config :sahla, SahlaWeb.Endpoint, cache_static_manifest: "priv/static/cache_mani
 config :sahla, SahlaWeb.Endpoint,
   force_ssl: [
     rewrite_on: [:x_forwarded_proto],
+    hsts: true,
+    # HSTS: one year, subdomains, preload-list eligible.
+    expires: 31_536_000,
+    subdomains: true,
+    preload: true,
     exclude: [
-      # paths: ["/health"],
+      # Never redirect the health probe: uptime monitors and the deploy gate
+      # may hit it over plain HTTP.
+      paths: ["/health"],
       hosts: ["localhost", "127.0.0.1"]
     ]
   ]
+
+# Session cookies are marked Secure in production (served over HTTPS).
+config :sahla, secure_session_cookie: true
 
 # Configure Swoosh API Client
 config :swoosh, api_client: Swoosh.ApiClient.Req

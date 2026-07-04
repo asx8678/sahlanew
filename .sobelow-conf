@@ -1,0 +1,21 @@
+# Sobelow configuration (auto-loaded by `mix sobelow`).
+#
+# Config.Headers is ignored because secure browser headers are set through the
+# custom `SahlaWeb.Plugs.SecureHeaders` plug (CSP with a per-request nonce, plus
+# frame/referrer/permissions headers) rather than a literal
+# `plug :put_secure_browser_headers` in each pipeline. Sobelow's static check
+# cannot introspect the custom plug and reports a false positive; every HTML
+# pipeline in router.ex does apply SecureHeaders.
+[
+  exit: false,
+  format: "txt",
+  ignore_files: [],
+  ignore: ["Config.Headers"],
+  out: nil,
+  private: false,
+  router: nil,
+  skip: true,
+  threshold: :low,
+  verbose: false,
+  version: false
+]

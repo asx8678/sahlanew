@@ -4,11 +4,15 @@ defmodule SahlaWeb.Endpoint do
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
   # Set :encryption_salt if you would also like to encrypt it.
+  # HttpOnly + SameSite always; the Secure flag is enabled in prod (served over
+  # HTTPS) and off in dev/test where cookies travel over plain HTTP.
   @session_options [
     store: :cookie,
     key: "_sahla_key",
     signing_salt: "qOSH34cx",
-    same_site: "Lax"
+    same_site: "Lax",
+    http_only: true,
+    secure: Application.compile_env(:sahla, :secure_session_cookie, false)
   ]
 
   socket "/live", Phoenix.LiveView.Socket,

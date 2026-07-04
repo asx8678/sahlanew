@@ -1,0 +1,21 @@
+# Dependency update automation (§12 dependency hygiene). Weekly PRs for both the
+# Elixir/Hex packages (the "mix" ecosystem) and the GitHub Actions used by CI.
+version: 2
+updates:
+  - package-ecosystem: "mix"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      # Batch low-risk patch/minor bumps into a single PR to cut review noise.
+      hex-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5

@@ -1,0 +1,182 @@
+make,model,version,fiscal_power,fuel,seats,new_value_centimes,year_from,year_to,popular
+Dacia,Sandero,1.0 SCe Access,5,essence,5,13000000,2017,2023,true
+Dacia,Sandero,1.0 SCe Ambiance,5,essence,5,14500000,2017,2023,true
+Dacia,Sandero,1.5 dCi Ambiance,5,diesel,5,16000000,2015,2022,true
+Dacia,Sandero Stepway,1.0 TCe Confort,6,essence,5,17500000,2020,2024,true
+Dacia,Sandero Stepway,1.5 dCi Prestige,6,diesel,5,19000000,2018,2024,true
+Dacia,Logan,1.0 SCe Access,5,essence,5,13500000,2017,2023,true
+Dacia,Logan,1.5 dCi Ambiance,5,diesel,5,16500000,2016,2023,true
+Dacia,Logan MCV,1.5 dCi Confort,5,diesel,5,17500000,2015,2021,true
+Dacia,Duster,1.5 dCi Ambiance,8,diesel,5,22000000,2018,2024,true
+Dacia,Duster,1.5 dCi Prestige 4x4,9,diesel,5,26000000,2018,2024,true
+Dacia,Duster,1.3 TCe Confort,8,essence,5,23000000,2020,2024,true
+Dacia,Dokker,1.5 dCi Ambiance,6,diesel,5,16000000,2015,2021,true
+Dacia,Lodgy,1.5 dCi Stepway 7pl,7,diesel,7,21000000,2015,2022,true
+Renault,Clio,1.0 SCe Life,5,essence,5,16000000,2019,2024,true
+Renault,Clio,1.5 dCi Zen,5,diesel,5,18500000,2019,2024,true
+Renault,Clio,1.5 dCi Intens,5,diesel,5,20500000,2016,2023,true
+Renault,Clio,1.2 16V Expression,6,essence,5,15000000,2013,2019,true
+Renault,Megane,1.5 dCi Life,6,diesel,5,22000000,2016,2023,true
+Renault,Megane,1.5 dCi Intens,6,diesel,5,26000000,2016,2023,true
+Renault,Megane Sedan,1.5 dCi Zen,6,diesel,5,24000000,2017,2023,true
+Renault,Captur,1.5 dCi Zen,7,diesel,5,23000000,2018,2024,true
+Renault,Captur,1.3 TCe Intens,8,essence,5,27000000,2020,2024,true
+Renault,Kadjar,1.5 dCi Intens,8,diesel,5,30000000,2016,2022,true
+Renault,Kangoo,1.5 dCi Confort,6,diesel,5,18000000,2015,2022,true
+Renault,Talisman,1.6 dCi Intens,9,diesel,5,38000000,2016,2021,false
+Renault,Koleos,2.0 dCi Intens,11,diesel,5,45000000,2017,2022,false
+Peugeot,208,1.2 PureTech Active,6,essence,5,17000000,2019,2024,true
+Peugeot,208,1.5 BlueHDi Allure,5,diesel,5,19500000,2019,2024,true
+Peugeot,208,1.6 HDi Active,5,diesel,5,16000000,2013,2019,true
+Peugeot,301,1.6 HDi Active,6,diesel,5,17500000,2015,2022,true
+Peugeot,301,1.2 VTi Allure,6,essence,5,16500000,2015,2022,true
+Peugeot,308,1.5 BlueHDi Allure,7,diesel,5,25000000,2018,2024,true
+Peugeot,308,1.6 HDi Active,7,diesel,5,22000000,2014,2020,true
+Peugeot,2008,1.5 BlueHDi Allure,7,diesel,5,26000000,2019,2024,true
+Peugeot,2008,1.2 PureTech Active,6,essence,5,24000000,2019,2024,true
+Peugeot,3008,1.5 BlueHDi Allure,8,diesel,5,34000000,2017,2024,true
+Peugeot,3008,1.6 THP GT Line,9,essence,5,38000000,2017,2023,false
+Peugeot,5008,1.5 BlueHDi Allure 7pl,9,diesel,7,40000000,2018,2024,false
+Peugeot,Partner,1.6 HDi Confort,6,diesel,5,17000000,2015,2021,false
+Citroen,C3,1.2 PureTech Feel,6,essence,5,16500000,2017,2023,true
+Citroen,C3,1.6 HDi Shine,5,diesel,5,18500000,2017,2023,true
+Citroen,C-Elysee,1.6 HDi Confort,6,diesel,5,16500000,2015,2022,true
+Citroen,C-Elysee,1.2 VTi Feel,6,essence,5,15500000,2015,2022,true
+Citroen,C4,1.5 BlueHDi Shine,7,diesel,5,26000000,2021,2024,false
+Citroen,C4 Cactus,1.6 HDi Shine,7,diesel,5,23000000,2016,2021,false
+Citroen,Berlingo,1.6 HDi Feel,6,diesel,5,20000000,2019,2024,false
+Citroen,C5 Aircross,1.5 BlueHDi Shine,9,diesel,5,36000000,2019,2024,false
+Volkswagen,Golf,1.6 TDI Trendline,7,diesel,5,26000000,2015,2020,false
+Volkswagen,Golf,1.4 TSI Comfortline,8,essence,5,28000000,2015,2020,false
+Volkswagen,Golf,2.0 TDI Highline,9,diesel,5,32000000,2017,2021,false
+Volkswagen,Polo,1.0 TSI Trendline,6,essence,5,19000000,2018,2024,false
+Volkswagen,Polo,1.6 TDI Confortline,6,diesel,5,21000000,2018,2023,false
+Volkswagen,Passat,2.0 TDI Confortline,10,diesel,5,38000000,2016,2022,false
+Volkswagen,Passat,1.4 TSI Highline,9,essence,5,40000000,2016,2022,false
+Volkswagen,Tiguan,2.0 TDI Confortline,10,diesel,5,42000000,2017,2023,false
+Volkswagen,Tiguan,1.4 TSI Carat,9,essence,5,44000000,2017,2023,false
+Volkswagen,Touareg,3.0 TDI Carat,14,diesel,5,85000000,2019,2024,false
+Volkswagen,T-Roc,1.5 TSI Style,8,essence,5,34000000,2019,2024,false
+Toyota,Yaris,1.5 VVT-i Luna,6,essence,5,18000000,2015,2020,true
+Toyota,Yaris,1.4 D-4D Luna,5,diesel,5,19000000,2014,2020,true
+Toyota,Yaris,1.5 Hybrid Dynamic,6,hybride,5,24000000,2021,2024,false
+Toyota,Corolla,1.4 D-4D Luna,7,diesel,5,24000000,2015,2019,true
+Toyota,Corolla,1.8 Hybrid Exclusive,8,hybride,5,32000000,2019,2024,false
+Toyota,Corolla Sedan,1.6 VVT-i Luna,8,essence,5,26000000,2019,2024,true
+Toyota,C-HR,1.8 Hybrid Dynamic,8,hybride,5,36000000,2018,2024,false
+Toyota,RAV4,2.0 D-4D Lounge,11,diesel,5,45000000,2016,2022,false
+Toyota,RAV4,2.5 Hybrid Lounge,11,hybride,5,52000000,2019,2024,false
+Toyota,Hilux,2.4 D-4D Double Cab,11,diesel,5,42000000,2016,2023,false
+Toyota,Land Cruiser,2.8 D-4D VX,14,diesel,7,90000000,2018,2024,false
+Toyota,Prius,1.8 Hybrid Lounge,8,hybride,5,34000000,2016,2022,false
+Hyundai,i10,1.0 Essential,4,essence,5,12500000,2020,2024,true
+Hyundai,i10,1.2 Comfort,5,essence,5,14000000,2020,2024,true
+Hyundai,i20,1.2 Comfort,6,essence,5,16000000,2015,2021,true
+Hyundai,i20,1.4 CRDi Prestige,6,diesel,5,18000000,2015,2020,true
+Hyundai,Accent,1.6 CRDi GLS,7,diesel,5,20000000,2015,2020,true
+Hyundai,Grand i10,1.2 Comfort,5,essence,5,14500000,2019,2024,true
+Hyundai,Tucson,1.6 CRDi Executive,9,diesel,5,34000000,2019,2024,true
+Hyundai,Tucson,2.0 CRDi Premium,10,diesel,5,38000000,2016,2021,true
+Hyundai,Creta,1.6 CRDi Executive,8,diesel,5,28000000,2020,2024,true
+Hyundai,Santa Fe,2.2 CRDi Premium,12,diesel,7,55000000,2019,2024,false
+Hyundai,Kona,1.0 T-GDi Style,7,essence,5,28000000,2018,2023,false
+Hyundai,Kona,Electric Executive,8,electrique,5,42000000,2020,2024,false
+Hyundai,Elantra,1.6 GLS,8,essence,5,24000000,2016,2021,false
+Kia,Picanto,1.0 Motion,4,essence,5,12500000,2018,2024,true
+Kia,Picanto,1.2 Active,5,essence,5,14000000,2018,2024,true
+Kia,Rio,1.4 CRDi Active,6,diesel,5,17500000,2017,2023,true
+Kia,Rio,1.2 Motion,6,essence,5,16000000,2017,2023,true
+Kia,Cerato,1.6 CRDi Active,8,diesel,5,22000000,2016,2021,true
+Kia,Sportage,1.7 CRDi Active,9,diesel,5,32000000,2016,2021,true
+Kia,Sportage,1.6 CRDi Motion,9,diesel,5,34000000,2019,2024,true
+Kia,Sorento,2.2 CRDi Premium,12,diesel,7,52000000,2018,2024,false
+Kia,Stonic,1.4 Active,7,essence,5,24000000,2019,2024,false
+Kia,Ceed,1.6 CRDi Active,8,diesel,5,26000000,2019,2024,false
+Kia,Niro,Hybrid Premium,8,hybride,5,36000000,2020,2024,false
+Ford,Fiesta,1.5 TDCi Trend,5,diesel,5,17000000,2017,2022,false
+Ford,Fiesta,1.0 EcoBoost Titanium,6,essence,5,18500000,2017,2022,false
+Ford,Focus,1.5 TDCi Trend,7,diesel,5,24000000,2018,2023,false
+Ford,Focus,1.0 EcoBoost Titanium,7,essence,5,25000000,2018,2023,false
+Ford,Fusion,1.6 TDCi Trend,6,diesel,5,16000000,2013,2018,false
+Ford,Kuga,2.0 TDCi Titanium,10,diesel,5,38000000,2017,2022,false
+Ford,EcoSport,1.5 TDCi Titanium,7,diesel,5,24000000,2016,2021,false
+Ford,Ranger,2.2 TDCi Double Cab,11,diesel,5,40000000,2016,2022,false
+Fiat,Panda,1.2 Easy,4,essence,5,12000000,2015,2021,false
+Fiat,Panda,1.3 MultiJet Lounge,5,diesel,5,14000000,2015,2021,false
+Fiat,Tipo,1.6 MultiJet Easy,6,diesel,5,17000000,2016,2023,false
+Fiat,Tipo,1.4 Lounge,6,essence,5,16000000,2016,2023,false
+Fiat,500,1.2 Lounge,5,essence,4,15000000,2016,2023,false
+Fiat,500X,1.6 MultiJet Cross,8,diesel,5,24000000,2016,2021,false
+Fiat,Doblo,1.6 MultiJet Easy,6,diesel,5,18000000,2015,2021,false
+Nissan,Micra,1.5 dCi Acenta,5,diesel,5,16000000,2017,2022,false
+Nissan,Micra,1.0 Visia,5,essence,5,15000000,2017,2022,false
+Nissan,Juke,1.5 dCi Acenta,7,diesel,5,24000000,2015,2020,false
+Nissan,Qashqai,1.5 dCi Acenta,8,diesel,5,30000000,2017,2023,false
+Nissan,Qashqai,1.6 dCi Tekna,9,diesel,5,34000000,2014,2020,false
+Nissan,X-Trail,1.6 dCi Tekna 7pl,10,diesel,7,42000000,2017,2022,false
+Nissan,Navara,2.3 dCi Double Cab,11,diesel,5,40000000,2016,2022,false
+Nissan,Leaf,Acenta,8,electrique,5,40000000,2019,2024,false
+Seat,Ibiza,1.6 TDI Style,6,diesel,5,18000000,2017,2023,false
+Seat,Ibiza,1.0 TSI Reference,6,essence,5,17000000,2017,2023,false
+Seat,Leon,1.6 TDI Style,7,diesel,5,24000000,2017,2022,false
+Seat,Leon,1.4 TSI FR,8,essence,5,27000000,2017,2022,false
+Seat,Arona,1.6 TDI Xcellence,7,diesel,5,26000000,2018,2024,false
+Seat,Ateca,1.6 TDI Style,9,diesel,5,32000000,2017,2023,false
+Seat,Toledo,1.6 TDI Style,6,diesel,5,18000000,2015,2019,false
+Skoda,Fabia,1.4 TDI Ambition,5,diesel,5,17000000,2015,2021,false
+Skoda,Fabia,1.0 TSI Style,6,essence,5,18000000,2015,2021,false
+Skoda,Octavia,1.6 TDI Ambition,7,diesel,5,25000000,2017,2023,false
+Skoda,Octavia,1.4 TSI Style,8,essence,5,27000000,2017,2023,false
+Skoda,Rapid,1.6 TDI Ambition,6,diesel,5,19000000,2015,2020,false
+Skoda,Superb,2.0 TDI Style,10,diesel,5,40000000,2016,2022,false
+Skoda,Kodiaq,2.0 TDI Style 7pl,11,diesel,7,46000000,2018,2024,false
+Skoda,Karoq,1.6 TDI Ambition,9,diesel,5,32000000,2018,2023,false
+Opel,Corsa,1.3 CDTi Enjoy,5,diesel,5,16000000,2015,2019,false
+Opel,Corsa,1.2 Edition,6,essence,5,17000000,2020,2024,false
+Opel,Astra,1.6 CDTi Edition,7,diesel,5,24000000,2016,2021,false
+Opel,Astra,1.4 Turbo Elite,8,essence,5,26000000,2016,2021,false
+Opel,Insignia,2.0 CDTi Cosmo,10,diesel,5,38000000,2015,2020,false
+Opel,Mokka,1.6 CDTi Cosmo,8,diesel,5,26000000,2016,2021,false
+Opel,Crossland,1.5 CDTi Innovation,7,diesel,5,27000000,2018,2023,false
+Suzuki,Swift,1.2 GL,5,essence,5,15000000,2018,2024,false
+Suzuki,Swift,1.3 DDiS GLX,5,diesel,5,16500000,2014,2019,false
+Suzuki,Baleno,1.2 GLX,6,essence,5,16000000,2016,2022,false
+Suzuki,Vitara,1.6 DDiS GLX,8,diesel,5,26000000,2016,2022,false
+Suzuki,S-Cross,1.6 DDiS GLX,8,diesel,5,27000000,2016,2021,false
+Suzuki,Celerio,1.0 GL,4,essence,5,12000000,2015,2020,false
+Suzuki,Jimny,1.5 GLX,8,essence,4,28000000,2019,2024,false
+Honda,Jazz,1.3 i-VTEC Comfort,6,essence,5,18000000,2015,2020,false
+Honda,Civic,1.6 i-DTEC Executive,8,diesel,5,28000000,2016,2021,false
+Honda,Civic,1.5 VTEC Turbo Sport,9,essence,5,30000000,2017,2022,false
+Honda,CR-V,1.6 i-DTEC Executive,11,diesel,5,44000000,2016,2021,false
+Honda,HR-V,1.5 i-VTEC Elegance,8,essence,5,30000000,2016,2021,false
+Honda,City,1.5 i-VTEC Comfort,7,essence,5,22000000,2017,2023,false
+Mercedes,Classe A,180 CDI Style,8,diesel,5,40000000,2016,2021,false
+Mercedes,Classe A,200 Progressive,9,essence,5,44000000,2019,2024,false
+Mercedes,Classe C,220 CDI Avantgarde,11,diesel,5,55000000,2015,2021,false
+Mercedes,Classe C,200 AMG Line,11,essence,5,60000000,2019,2024,false
+Mercedes,CLA,200 CDI AMG Line,10,diesel,5,52000000,2016,2022,false
+Mercedes,GLA,200 CDI Progressive,10,diesel,5,50000000,2017,2023,false
+Mercedes,GLC,220 CDI AMG Line,12,diesel,5,72000000,2017,2023,false
+Mercedes,Classe E,220 CDI Avantgarde,13,diesel,5,80000000,2017,2023,false
+BMW,Serie 1,118d Sport,8,diesel,5,42000000,2016,2021,false
+BMW,Serie 1,116i Advantage,7,essence,5,40000000,2019,2024,false
+BMW,Serie 3,320d Luxury,11,diesel,5,58000000,2016,2022,false
+BMW,Serie 3,318i Sport,10,essence,5,54000000,2019,2024,false
+BMW,Serie 5,520d M Sport,12,diesel,5,75000000,2017,2023,false
+BMW,X1,18d xLine,9,diesel,5,46000000,2016,2022,false
+BMW,X3,20d M Sport,12,diesel,5,68000000,2018,2024,false
+BMW,X5,30d M Sport,14,diesel,7,88000000,2019,2024,false
+Audi,A1,1.6 TDI Ambition,7,diesel,5,30000000,2015,2021,false
+Audi,A3,1.6 TDI Ambition,8,diesel,5,36000000,2016,2022,false
+Audi,A3 Sportback,2.0 TDI S Line,9,diesel,5,42000000,2016,2022,false
+Audi,A4,2.0 TDI Design,11,diesel,5,55000000,2016,2022,false
+Audi,A4,2.0 TFSI S Line,11,essence,5,58000000,2016,2022,false
+Audi,Q3,2.0 TDI Design,10,diesel,5,48000000,2019,2024,false
+Audi,Q5,2.0 TDI S Line,12,diesel,5,70000000,2018,2024,false
+Audi,Q7,3.0 TDI S Line,14,diesel,7,88000000,2017,2023,false
+Mitsubishi,Space Star,1.2 Intense,5,essence,5,13500000,2016,2022,false
+Mitsubishi,ASX,1.6 DiD Intense,8,diesel,5,28000000,2016,2021,false
+Mitsubishi,Outlander,2.2 DiD Instyle 7pl,11,diesel,7,46000000,2016,2021,false
+Mitsubishi,L200,2.4 DiD Double Cab,11,diesel,5,40000000,2016,2023,false
+Mitsubishi,Eclipse Cross,1.5 Intense,8,essence,5,30000000,2018,2023,false

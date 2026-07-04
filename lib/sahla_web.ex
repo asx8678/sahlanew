@@ -40,7 +40,7 @@ defmodule SahlaWeb do
     quote do
       use Phoenix.Controller, formats: [:html, :json]
 
-      use Gettext, backend: SahlaWeb.Gettext
+      use Gettext, backend: Sahla.Gettext
 
       import Plug.Conn
 
@@ -80,7 +80,7 @@ defmodule SahlaWeb do
   defp html_helpers do
     quote do
       # Translation
-      use Gettext, backend: SahlaWeb.Gettext
+      use Gettext, backend: Sahla.Gettext
 
       # HTML escaping functionality
       import Phoenix.HTML

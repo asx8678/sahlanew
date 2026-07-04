@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# CI gate only (§12, §13.3). Release/deploy lives in deploy.yml (deploy-ops).
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Quality gates
+    # ubuntu-24.04 matches the release target (§13.3).
+    runs-on: ubuntu-24.04
+
+    env:
+      MIX_ENV: test
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        # pg_trgm/citext are enabled by the enable_extensions migration, which
+        # runs as this superuser when `mix test` sets up the database.
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir/OTP
+        uses: erlef/setup-beam@v1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+
+      - name: Cache deps and _build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ hashFiles('.tool-versions', 'mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mix-
+
+      - name: Install dependencies
+        run: mix deps.get --check-locked
+
+      # Lessons: hackney's bundled idna conflicts with req/mint — HTTP must go
+      # through Req/Finch. Fail the build if it ever creeps into the tree.
+      - name: Assert hackney is absent
+        run: |
+          if mix deps.tree | grep -qi hackney; then
+            echo "::error::hackney is in the dependency tree — use Req/Finch instead (§Lessons)"
+            exit 1
+          fi
+
+      - name: Audit dependencies (retired/unused)
+        run: mix deps.unlock --check-unused
+
+      - name: Audit dependencies (security advisories)
+        run: mix deps.audit
+
+      - name: Audit Hex packages (retired)
+        run: mix hex.audit
+
+      - name: Compile (warnings as errors)
+        run: mix compile --warnings-as-errors
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Credo (strict)
+        run: mix credo --strict
+
+      - name: Sobelow (security static analysis)
+        run: mix sobelow --exit
+
+      - name: Test
+        run: mix test

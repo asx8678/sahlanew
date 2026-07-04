@@ -22,6 +22,24 @@ end
 
 config :sahla, SahlaWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+if config_env() in [:dev, :test] do
+  # Deliberately NON-SECRET deterministic keys: dev data stays decryptable
+  # across restarts and tests are reproducible. Real keys exist only in the
+  # production environment (CLOAK_KEY / HMAC_KEY, below).
+  config :sahla, Sahla.Vault,
+    ciphers: [
+      default:
+        {Cloak.Ciphers.AES.GCM,
+         tag: "AES.GCM.V1",
+         key: :crypto.hash(:sha256, "sahla-#{config_env()}-cloak-key-not-a-secret"),
+         iv_length: 12}
+    ]
+
+  config :sahla, Sahla.Hashed.HMAC,
+    algorithm: :sha256,
+    secret: "sahla-#{config_env()}-hmac-key-not-a-secret"
+end
+
 if config_env() == :prod do
   # Fail fast: every required secret must be present in the environment
   # (/etc/sahla/app.env in production), with an error that names the
@@ -54,9 +72,32 @@ if config_env() == :prod do
 
   host = required!.("PHX_HOST", "example.ma")
 
-  # Cloak vault key (base64-encoded 32-byte AES key). Read into config only
-  # here; the vault/cipher wiring lives in security-compliance.cloak-setup.
-  config :sahla, :cloak_key, required!.("CLOAK_KEY", "$(openssl rand -base64 32)")
+  # PII encryption at rest (Law 09-08 / §12): AES-GCM-256 vault key plus a
+  # SEPARATE keyed-HMAC lookup key. Both are required in prod — the app
+  # refuses to boot without them.
+  cloak_key =
+    case Base.decode64(required!.("CLOAK_KEY", "$(openssl rand -base64 32)")) do
+      {:ok, key} when byte_size(key) == 32 ->
+        key
+
+      _ ->
+        raise """
+        CLOAK_KEY must be a base64-encoded 32-byte AES key.
+        Generate one with: openssl rand -base64 32
+        """
+    end
+
+  hmac_key = required!.("HMAC_KEY", "$(openssl rand -base64 32)")
+
+  # To rotate the vault key, add the new key as :default with a new tag and
+  # keep the old cipher listed until re-encryption completes — see
+  # docs/security/key-rotation.md.
+  config :sahla, Sahla.Vault,
+    ciphers: [
+      default: {Cloak.Ciphers.AES.GCM, tag: "AES.GCM.V1", key: cloak_key, iv_length: 12}
+    ]
+
+  config :sahla, Sahla.Hashed.HMAC, algorithm: :sha256, secret: hmac_key
 
   config :sahla, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
@@ -124,21 +165,19 @@ if config_env() == :prod do
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
 
-  # ## Configuring the mailer
-  #
-  # In production you need to configure the mailer to use a different adapter.
-  # Here is an example configuration for Mailgun:
-  #
-  #     config :sahla, Sahla.Mailer,
-  #       adapter: Swoosh.Adapters.Mailgun,
-  #       api_key: System.get_env("MAILGUN_API_KEY"),
-  #       domain: System.get_env("MAILGUN_DOMAIN")
-  #
-  # Most non-SMTP adapters require an API client. Swoosh supports Req, Hackney,
-  # and Finch out-of-the-box. This configuration is typically done at
-  # compile-time in your config/prod.exs:
-  #
-  #     config :swoosh, :api_client, Swoosh.ApiClient.Req
-  #
-  # See https://hexdocs.pm/swoosh/Swoosh.html#module-installation for details.
+  # Mailer (§11). Postmark over Req (api_client set in config/prod.exs — no
+  # hackney) when POSTMARK_API_KEY is present; otherwise the Local adapter, so a
+  # prod boot without the secret still runs and previews mail rather than
+  # crashing (external-provider pattern — live only when the secret exists).
+  # SPF/DKIM/DMARC setup: see ops/email-deliverability.md.
+  if postmark_key = System.get_env("POSTMARK_API_KEY") do
+    config :sahla, Sahla.Mailer,
+      adapter: Swoosh.Adapters.Postmark,
+      api_key: postmark_key
+  end
+
+  # Sender identity, overridable without a redeploy (falls back to config.exs).
+  if from_email = System.get_env("MAIL_FROM_EMAIL") do
+    config :sahla, :mail_from, {System.get_env("MAIL_FROM_NAME", "Sahla"), from_email}
+  end
 end

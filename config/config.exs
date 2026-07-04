@@ -19,6 +19,14 @@ config :sahla, Sahla.Repo,
   migration_foreign_key: [type: :binary_id],
   migration_timestamps: [type: :utc_datetime]
 
+# Background jobs (§7.3, §12). Oban replaces system cron for app schedules.
+# Only queues + the Cron scheduler home are defined here; concrete cron entries
+# (abandon +2h/+24h, retention purges) are attached by their owning domains.
+config :sahla, Oban,
+  repo: Sahla.Repo,
+  queues: [sms: 10, email: 10, followups: 20, imports: 5, maintenance: 5],
+  plugins: [{Oban.Plugins.Cron, crontab: []}]
+
 # Configure the endpoint
 config :sahla, SahlaWeb.Endpoint,
   url: [host: "localhost"],
@@ -29,6 +37,34 @@ config :sahla, SahlaWeb.Endpoint,
   ],
   pubsub_server: Sahla.PubSub,
   live_view: [signing_salt: "g1eqhlFQ"]
+
+# SMS kill-switch (§11): when false, Notifications.SMS.send/3 short-circuits to
+# {:error, :disabled}. Flipped at runtime by the budget/settings system. The
+# provider defaults to the Fake adapter until a live one is configured.
+config :sahla, :sms_enabled, true
+
+# Email kill-switch (§11): when false, Notifications.Email.deliver/1
+# short-circuits to {:error, :disabled}, so a budget alarm or incident can halt
+# all transactional email at runtime — mirrors the SMS kill-switch.
+config :sahla, :email_enabled, true
+
+# Default From: for transactional email (§11). Overridable at runtime via
+# MAIL_FROM_* env; the display name still resolves the brand separately.
+config :sahla, :mail_from, {"Sahla", "no-reply@sahla.ma"}
+
+# Brand display name (§5.3, §11): resolved by the notification/template layer so
+# no message hardcodes it. Overridable at runtime via settings/admin-studio.
+config :sahla, :brand_name, "Sahla"
+
+# i18n: French is the default UI language; Arabic is the second locale (§6.3).
+# msgids are English dev-keys; catalogs live in priv/gettext/{fr,ar}.
+config :sahla, Sahla.Gettext,
+  default_locale: "fr",
+  allowed_locales: ~w(fr ar)
+
+# CLDR (number/date formatting) shares the Gettext locale; Sahla.Cldr is the
+# default backend so `Cldr.put_locale/1` and formatters resolve without args.
+config :ex_cldr, default_backend: Sahla.Cldr
 
 # Configure the mailer
 #
