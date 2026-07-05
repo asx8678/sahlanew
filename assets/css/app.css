@@ -15,6 +15,58 @@
    emits the corresponding :root custom properties even before components use them. */
 @source "../../priv/static/design_token_classes.html";
 
+/* IBM Plex Sans + Sans Arabic, self-hosted (section 6.1).
+   License: SIL Open Font License 1.1 — see priv/static/fonts/plex/LICENSE.
+   We load Regular, Medium and SemiBold; Bold is omitted to keep the JS/CSS
+   budget tight. font-display: swap keeps first paint fast on 3G. */
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/plex/IBMPlexSans-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/plex/IBMPlexSans-Medium.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/plex/IBMPlexSans-SemiBold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Sans Arabic";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/plex/IBMPlexSansArabic-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Sans Arabic";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/plex/IBMPlexSansArabic-Medium.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Sans Arabic";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/plex/IBMPlexSansArabic-SemiBold.woff2") format("woff2");
+}
+
 /* A Tailwind plugin that makes hero-ICON classes available. */
 @plugin "../vendor/heroicons";
 
@@ -74,6 +126,12 @@
   /* Card radius plus the single soft shadow (section 6.1, friendly not bubbly). */
   --radius-card: 14px;
   --shadow-soft: 0 4px 12px rgba(27, 27, 41, 0.06);
+
+  /* Typography: IBM Plex Sans for Latin, IBM Plex Sans Arabic for Arabic.
+     The Arabic family is declared first so Arabic text prefers it while Latin
+     glyphs fall through to the second family, giving one typographic voice. */
+  --font-sans: "IBM Plex Sans Arabic", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-eyebrow: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Explicit utilities for tokens that Tailwind v4 does not auto-generate
@@ -85,6 +143,20 @@
 
 @utility shadow-soft {
   box-shadow: var(--shadow-soft);
+}
+
+/* Typographic utilities. tabular-nums is mandatory for price columns so MAD
+   figures align. caps-eyebrow is Latin-only small-caps styling for labels. */
+@utility tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility caps-eyebrow {
+  font-family: var(--font-eyebrow);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 /* Add variants based on LiveView classes */

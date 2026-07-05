@@ -1,6 +1,7 @@
 defmodule Sahla.ContentTest do
   use Sahla.DataCase, async: true
 
+  alias Sahla.Accounts.Admin
   alias Sahla.Content
   alias Sahla.Content.Post
   alias Sahla.Repo
@@ -8,8 +9,8 @@ defmodule Sahla.ContentTest do
   # An editor (holds the :cms capability) for the post FK + cms-gated mutations.
   defp author do
     {:ok, admin} =
-      %Sahla.Accounts.Admin{}
-      |> Sahla.Accounts.Admin.registration_changeset(%{
+      %Admin{}
+      |> Admin.registration_changeset(%{
         email: "editor-#{System.unique_integer([:positive])}@sahla.test",
         password: "password-password",
         role: "editor"
@@ -41,14 +42,14 @@ defmodule Sahla.ContentTest do
 
     test "strips dangerous attributes (onclick) and keeps safe href" do
       html =
-        Content.render_html("<a href=\"https://example.com\" onclick=\"evil()\">link</a>")
+        Content.render_html(~S[<a href="https://example.com" onclick="evil()">link</a>])
 
       refute String.contains?(html, "onclick"), "event-handler attributes must be stripped"
       assert String.contains?(html, "https://example.com"), "safe href must survive"
     end
 
     test "strips javascript: URLs from href" do
-      html = Content.render_html("<a href=\"javascript:alert(1)\">x</a>")
+      html = Content.render_html(~S[<a href="javascript:alert(1)">x</a>])
       refute String.contains?(html, "javascript:"), "javascript: scheme must be stripped"
     end
 
@@ -91,7 +92,12 @@ defmodule Sahla.ContentTest do
 
     test "rejects an invalid slug format" do
       cs =
-        Post.changeset(%Post{}, %{slug: "Bad Slug!", kind: :guide, title_fr: "t", body_fr: "b"})
+        Post.changeset(%Post{}, %{
+          slug: "Bad Slug!",
+          kind: :guide,
+          title_fr: "t",
+          body_fr: "b"
+        })
 
       assert errors_on(cs)[:slug]
     end
@@ -153,8 +159,8 @@ defmodule Sahla.ContentTest do
 
     test "an agent (no cms) is forbidden" do
       {:ok, agent} =
-        %Sahla.Accounts.Admin{}
-        |> Sahla.Accounts.Admin.registration_changeset(%{
+        %Admin{}
+        |> Admin.registration_changeset(%{
           email: "agent-#{System.unique_integer([:positive])}@sahla.test",
           password: "password-password",
           role: "agent"

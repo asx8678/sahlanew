@@ -56,6 +56,7 @@ defmodule SahlaWeb.Router do
 
       get "/", PageController, :home
       get "/design-tokens", DesignTokenController, :index
+      get "/design/components", ComponentsController, :index
     end
 
     scope "/ar", SahlaWeb, as: :ar do
@@ -63,6 +64,7 @@ defmodule SahlaWeb.Router do
 
       get "/", PageController, :home
       get "/design-tokens", DesignTokenController, :index
+      get "/design/components", ComponentsController, :index
     end
   end
 

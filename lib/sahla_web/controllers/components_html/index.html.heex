@@ -1,0 +1,103 @@
+<Layouts.flash_group flash={@flash} />
+
+<div class="min-h-screen bg-bg text-ink">
+  <main class="mx-auto max-w-5xl px-6 py-16">
+    <h1 class="text-3xl font-bold tracking-tight text-ink">
+      Core components
+    </h1>
+    <p class="mt-4 text-lg text-ink/70">
+      Reusable primitives for the funnel, results and admin surfaces.
+    </p>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold text-ink">Buttons</h2>
+      <div class="mt-6 flex flex-wrap items-center gap-4">
+        <.button variant="primary">Primary</.button>
+        <.button variant="secondary">Secondary</.button>
+        <.button variant="outline">Outline</.button>
+        <.button variant="ghost">Ghost</.button>
+        <.button variant="danger">Danger</.button>
+      </div>
+      <div class="mt-6 flex flex-wrap items-center gap-4">
+        <.button size="sm">Small</.button>
+        <.button size="md">Medium</.button>
+        <.button size="lg">Large</.button>
+      </div>
+      <div class="mt-6 flex flex-wrap items-center gap-4">
+        <.button loading>Loading</.button>
+      </div>
+    </section>
+
+    <section class="mt-16">
+      <h2 class="text-xl font-semibold text-ink">Cards</h2>
+      <div class="mt-6 grid gap-6 sm:grid-cols-2">
+        <.card>
+          <h3 class="font-semibold">Default card</h3>
+          <p class="mt-2 text-ink/70">Rounded corners, soft shadow, surface background.</p>
+        </.card>
+        <.card class="border border-ink/10">
+          <h3 class="font-semibold">Card with border override</h3>
+          <p class="mt-2 text-ink/70">Accepts extra classes via the :class attr.</p>
+        </.card>
+      </div>
+    </section>
+
+    <section class="mt-16">
+      <h2 class="text-xl font-semibold text-ink">Badges</h2>
+      <div class="mt-6 flex flex-wrap items-center gap-3">
+        <.badge>Default</.badge>
+        <.badge variant="best_value">Best value</.badge>
+        <.badge variant="promo">Promo</.badge>
+        <.badge variant="info">Info</.badge>
+        <.badge variant="success">Success</.badge>
+        <.badge variant="warning">Warning</.badge>
+        <.badge variant="error">Error</.badge>
+      </div>
+    </section>
+
+    <section class="mt-16">
+      <h2 class="text-xl font-semibold text-ink">Option cards</h2>
+      <form class="mt-6 grid gap-4 sm:grid-cols-2">
+        <.option_card name="formula" value="tiers" label="Tiers" />
+        <.option_card name="formula" value="tiers_plus" label="Tiers+" selected />
+        <.option_card
+          name="formula"
+          value="tous_risques"
+          label="Tous risques"
+          description="Protection complète"
+        />
+      </form>
+    </section>
+
+    <section class="mt-16">
+      <h2 class="text-xl font-semibold text-ink">Price</h2>
+      <div class="mt-6 rounded-card bg-surface p-6 shadow-soft">
+        <p class="text-ink/70">Price with decimals</p>
+        <p class="mt-1 text-2xl"><.price cents={2_940_00} /></p>
+        <p class="mt-4 text-ink/70">Price without decimals</p>
+        <p class="mt-1 text-2xl"><.price cents={294_000} show_decimals={false} /></p>
+      </div>
+    </section>
+
+    <section class="mt-16">
+      <h2 class="text-xl font-semibold text-ink">Inputs</h2>
+      <form class="mt-6 max-w-md space-y-4">
+        <.input name="demo[name]" label="Nom" value="" />
+        <.input
+          name="demo[email]"
+          type="email"
+          label="Email"
+          value="bad"
+          errors={["format invalide"]}
+        />
+        <.input
+          name="demo[formula]"
+          type="select"
+          label="Formule"
+          options={[Tiers: "tiers", "Tous risques": "tous_risques"]}
+          value="tiers"
+        />
+      </form>
+    </section>
+  </main>
+</div>

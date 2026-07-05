@@ -86,35 +86,223 @@ defmodule SahlaWeb.CoreComponents do
   ## Examples
 
       <.button>Send!</.button>
-      <.button phx-click="go" variant="primary">Send!</.button>
+      <.button phx-click="go" variant="primary" size="md">Send!</.button>
       <.button navigate={~p"/"}>Home</.button>
+      <.button loading>Save</.button>
   """
   attr :rest, :global, include: ~w(href navigate patch method download name value disabled)
-  attr :class, :any
-  attr :variant, :string, values: ~w(primary)
+  attr :class, :any, default: nil
+  attr :variant, :string, values: ~w(primary secondary outline ghost danger), default: "primary"
+  attr :size, :string, values: ~w(sm md lg), default: "md"
+  attr :loading, :boolean, default: false
   slot :inner_block, required: true
 
   def button(%{rest: rest} = assigns) do
-    variants = %{"primary" => "btn-primary", nil => "btn-primary btn-soft"}
+    base = "btn inline-flex items-center justify-center gap-2 font-medium"
 
-    assigns =
-      assign_new(assigns, :class, fn ->
-        ["btn", Map.fetch!(variants, assigns[:variant])]
-      end)
+    variants = %{
+      "primary" => "btn-primary",
+      "secondary" => "btn-secondary",
+      "outline" => "btn-outline",
+      "ghost" => "btn-ghost",
+      "danger" => "btn-error"
+    }
+
+    sizes = %{
+      "sm" => "btn-sm min-h-8 px-3 text-sm",
+      "md" => "btn-md min-h-10 px-4 text-base",
+      "lg" => "btn-lg min-h-12 px-6 text-lg"
+    }
+
+    classes = [
+      base,
+      Map.fetch!(variants, assigns.variant),
+      Map.fetch!(sizes, assigns.size),
+      assigns.loading && "opacity-80 pointer-events-none",
+      assigns.class
+    ]
+
+    assigns = assign(assigns, :classes, classes)
 
     if rest[:href] || rest[:navigate] || rest[:patch] do
       ~H"""
-      <.link class={@class} {@rest}>
+      <.link class={@classes} {@rest}>
+        <.icon :if={@loading} name="hero-arrow-path" class="size-4 motion-safe:animate-spin" />
         {render_slot(@inner_block)}
       </.link>
       """
     else
       ~H"""
-      <button class={@class} {@rest}>
+      <button class={@classes} {@rest}>
+        <.icon :if={@loading} name="hero-arrow-path" class="size-4 motion-safe:animate-spin" />
         {render_slot(@inner_block)}
       </button>
       """
     end
+  end
+
+  @doc """
+  Renders a content card with a consistent surface, radius and shadow.
+
+  ## Examples
+
+      <.card>
+        <h3 class="font-semibold">Title</h3>
+        <p class="mt-2 text-ink/70">Body</p>
+      </.card>
+  """
+  attr :class, :any, default: nil
+  attr :rest, :global
+  slot :inner_block, required: true
+
+  def card(assigns) do
+    ~H"""
+    <div class={["rounded-card bg-surface shadow-soft p-6", @class]} {@rest}>
+      {render_slot(@inner_block)}
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a small status label.
+
+  ## Examples
+
+      <.badge>Default</.badge>
+      <.badge variant="best_value">Best value</.badge>
+      <.badge variant="promo">Promo</.badge>
+  """
+  attr :variant, :string,
+    values: ~w(default best_value promo info success warning error),
+    default: "default"
+
+  attr :class, :any, default: nil
+  attr :rest, :global
+  slot :inner_block, required: true
+
+  def badge(assigns) do
+    variants = %{
+      "default" => "bg-bg text-ink border border-ink/10",
+      "best_value" => "bg-accent text-white",
+      "promo" => "bg-warm text-white",
+      "info" => "bg-info text-info-content",
+      "success" => "bg-success text-success-content",
+      "warning" => "bg-warning text-warning-content",
+      "error" => "bg-error text-error-content"
+    }
+
+    classes = [
+      "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold",
+      Map.fetch!(variants, assigns.variant),
+      assigns.class
+    ]
+
+    assigns = assign(assigns, :classes, classes)
+
+    ~H"""
+    <span class={@classes} {@rest}>
+      {render_slot(@inner_block)}
+    </span>
+    """
+  end
+
+  @doc """
+  Renders a one-tap selectable card for small enums.
+
+  The hidden radio input inside the label keeps native keyboard support and
+  screen-reader semantics while the styled card gives a large tap target.
+
+  ## Examples
+
+      <.option_card name="formula" value="tiers" label="Tiers" />
+      <.option_card name="formula" value="tous_risques" label="Tous risques" selected />
+  """
+  attr :name, :string, required: true
+  attr :value, :string, required: true
+  attr :label, :string, required: true
+  attr :description, :string, default: nil
+  attr :selected, :boolean, default: false
+  attr :disabled, :boolean, default: false
+  attr :rest, :global
+
+  def option_card(assigns) do
+    ~H"""
+    <label
+      class={[
+        "group relative flex cursor-pointer items-start gap-4 rounded-card border-2 p-4 transition-colors",
+        @selected && "border-primary bg-primary/5",
+        !@selected && "border-ink/10 bg-surface hover:border-ink/20"
+      ]}
+      {@rest}
+    >
+      <input
+        type="radio"
+        name={@name}
+        value={@value}
+        checked={@selected}
+        disabled={@disabled}
+        class="sr-only"
+      />
+      <span
+        class={[
+          "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2",
+          @selected && "border-primary bg-primary text-white",
+          !@selected && "border-ink/30 bg-surface"
+        ]}
+        aria-hidden="true"
+      >
+        <span :if={@selected} class="size-2 rounded-full bg-current" />
+      </span>
+      <span class="flex-1">
+        <span class="block font-semibold text-ink">{@label}</span>
+        <span :if={@description} class="mt-0.5 block text-sm text-ink/60">
+          {@description}
+        </span>
+      </span>
+    </label>
+    """
+  end
+
+  @doc """
+  Renders a price with tabular figures and MAD formatting.
+
+  ## Examples
+
+      <.price cents={294_000} />
+      <.price amount={Decimal.new("2940.00")} />
+  """
+  attr :cents, :integer, required: true
+  attr :currency, :string, default: "MAD"
+  attr :show_decimals, :boolean, default: true
+  attr :class, :any, default: nil
+  attr :rest, :global
+
+  def price(assigns) do
+    value = assigns.cents / 100
+
+    # Space as thousands separator, comma as decimal separator (fr default).
+    # No-break space keeps the amount and currency together on narrow screens.
+    formatted =
+      if assigns.show_decimals do
+        :erlang.float_to_binary(value, decimals: 2)
+        |> String.replace(".", ",")
+        |> String.replace(~r/(?<=\d)(?=(\d{3})+(,|$))/, " ")
+      else
+        trunc(value)
+        |> Integer.to_string()
+        |> String.replace(~r/(?<=\d)(?=(\d{3})+$)/, " ")
+      end
+
+    assigns =
+      assigns
+      |> assign(:formatted, formatted)
+      |> assign(:classes, ["tabular-nums font-semibold text-ink", assigns.class])
+
+    ~H"""
+    <span class={@classes} {@rest}>
+      {gettext("%{amount}\u00A0%{currency}", amount: @formatted, currency: @currency)}
+    </span>
+    """
   end
 
   @doc """

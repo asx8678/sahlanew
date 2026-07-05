@@ -30,6 +30,11 @@ erl_crash.dump
 # Temporary files, for example, from tests.
 /tmp/
 
+# Production environment file — generated from ops/app.env.example.
+# Must live on the server only, chmod 600, owner deploy.
+/ops/app.env
+/etc/sahla/app.env
+
 # Ignore package tarball (built via "mix hex.build").
 sahla-*.tar
 
