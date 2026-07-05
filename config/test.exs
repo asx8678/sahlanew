@@ -48,3 +48,6 @@ config :phoenix,
 
 # Analytics are disabled in test so local runs never phone home.
 config :sahla, :analytics_enabled, false
+
+# Golden persona drift threshold for rating fixtures (100 centimes = 1 MAD).
+config :sahla, :rating_drift_threshold_centimes, 100

@@ -42,6 +42,7 @@ defmodule SahlaWeb.SEO do
   attr :meta_description, :string, default: nil
   attr :canonical_path, :string, default: nil
   attr :og_image, :string, default: nil
+  attr :breadcrumb_schema, :map, default: nil
 
   def seo(assigns) do
     page_title = assigns[:page_title]
@@ -61,6 +62,13 @@ defmodule SahlaWeb.SEO do
         brand
       end
 
+    breadcrumb_json =
+      if is_map(assigns[:breadcrumb_schema]) and map_size(assigns[:breadcrumb_schema]) > 0 do
+        Jason.encode!(assigns[:breadcrumb_schema])
+      else
+        nil
+      end
+
     assigns =
       assigns
       |> Map.put(:title, title)
@@ -70,6 +78,7 @@ defmodule SahlaWeb.SEO do
       |> Map.put(:og_image_url, og_image_url)
       |> Map.put(:locale, locale)
       |> Map.put(:base_url, base_url)
+      |> Map.put(:breadcrumb_json, breadcrumb_json)
 
     ~H"""
     <title>{@title}</title>
@@ -103,6 +112,11 @@ defmodule SahlaWeb.SEO do
       hreflang="x-default"
       href={@base_url <> localised_path(@canonical_path, "fr")}
     />
+    <%= if @breadcrumb_json do %>
+      <script type="application/ld+json">
+        <%= raw(@breadcrumb_json) %>
+      </script>
+    <% end %>
     """
   end
 
@@ -131,7 +145,14 @@ defmodule SahlaWeb.SEO do
       items
       |> Enum.with_index(1)
       |> Enum.map(fn
-        {{name, url}, idx} ->
+        {{name, nil}, idx} ->
+          %{
+            "@type" => "ListItem",
+            "position" => idx,
+            "name" => name
+          }
+
+        {{name, url}, idx} when is_binary(url) ->
           %{
             "@type" => "ListItem",
             "position" => idx,

@@ -61,6 +61,8 @@ defmodule SahlaWeb.Router do
       get "/design/components", ComponentsController, :index
       live "/devis/new", DevisLive, :new
       live "/devis/:token", DevisLive, :show
+      live "/guides", GuidesLive, :index
+      live "/guides/:slug", GuidesLive, :show
     end
 
     scope "/ar", SahlaWeb, as: :ar do
@@ -71,6 +73,8 @@ defmodule SahlaWeb.Router do
       get "/design/components", ComponentsController, :index
       live "/devis/new", DevisLive, :new
       live "/devis/:token", DevisLive, :show
+      live "/guides", GuidesLive, :index
+      live "/guides/:slug", GuidesLive, :show
     end
   end
 
@@ -116,6 +120,21 @@ defmodule SahlaWeb.Router do
       pipe_through [:admin, :require_admin, :admin_layout]
 
       live "/leads/:id", LeadLive, :show
+    end
+  end
+
+  # Protected admin settings surface: a full session and the :settings
+  # capability are required. The layout pipeline sets the admin root layout
+  # and the :breadcrumbs assign is populated inside the LiveView.
+  live_session :admin_settings,
+    on_mount: [
+      {SahlaWeb.AdminAuth, :fetch_current_admin},
+      {SahlaWeb.AdminAuthz, :settings}
+    ] do
+    scope "/admin", SahlaWeb.Admin, as: :admin do
+      pipe_through [:admin, :require_admin, :admin_layout]
+
+      live "/settings", SettingsLive, :index
     end
   end
 

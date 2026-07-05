@@ -13,7 +13,7 @@ defmodule Sahla.Accounts.Policy do
 
   # Capabilities per non-superadmin role.
   @role_capabilities %{
-    ops: [:leads, :simulator, :erase_person],
+    ops: [:leads, :simulator, :erase_person, :settings],
     agent: [:leads_assigned],
     editor: [:cms],
     finance: [:finance_exports]
