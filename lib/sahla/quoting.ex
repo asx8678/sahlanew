@@ -32,6 +32,7 @@ defmodule Sahla.Quoting do
     %Quote{}
     |> Quote.create_changeset(%{
       locale: Map.get(attrs, :locale, "fr"),
+      current_step: Map.get(attrs, :current_step, 1),
       ip: Map.get(attrs, :ip),
       user_agent: Map.get(attrs, :user_agent),
       utm: sanitize_utm(Map.get(attrs, :utm, %{}))
@@ -44,10 +45,22 @@ defmodule Sahla.Quoting do
   expired quote (an expired quote is not resumable).
   """
   def get_quote_by_token(token) when is_binary(token) do
+    case get_quote_for_resume(token) do
+      {:ok, quote} -> quote
+      _ -> nil
+    end
+  end
+
+  @doc """
+  Fetches a quote by token, preserving the expired status so the caller can
+  render an appropriate screen. Returns `{:ok, quote}`, `{:error, :expired}`,
+  or `{:error, :not_found}`.
+  """
+  def get_quote_for_resume(token) when is_binary(token) do
     case Repo.get_by(Quote, token: token) do
-      %Quote{status: :expired} -> nil
-      %Quote{} = quote -> quote
-      nil -> nil
+      %Quote{status: :expired} = quote -> {:error, :expired, quote}
+      %Quote{} = quote -> {:ok, quote}
+      nil -> {:error, :not_found}
     end
   end
 
@@ -60,12 +73,24 @@ defmodule Sahla.Quoting do
   def upsert_step(%Quote{} = quote, step, params) when step in @step_names do
     step_changeset = validate_step(quote, step, params)
 
-    if step_changeset.valid? do
-      quote
-      |> Quote.changeset(Map.put(step_changeset.changes, :current_step, advance(quote, step)))
-      |> Repo.update()
-    else
-      {:error, step_changeset}
+    # Progressive autosave: persist whatever the user has entered so far,
+    # even if the full step is not yet valid. Step-level validation errors
+    # are returned to the LiveView for inline display.
+    attrs =
+      params
+      |> Map.new(fn {key, value} -> {to_string(key), value} end)
+      |> Map.put("current_step", advance(quote, step))
+
+    case Repo.update(Quote.changeset(quote, attrs)) do
+      {:ok, quote} ->
+        if step_changeset.valid? do
+          {:ok, quote}
+        else
+          {:error, step_changeset}
+        end
+
+      error ->
+        error
     end
   end
 
