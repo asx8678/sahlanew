@@ -241,6 +241,44 @@ defmodule SahlaWeb.Layouts do
   defp agrement_number, do: Sahla.Settings.get("agrement_number", "--")
 
   @doc """
+  Renders the Plausible analytics script in <head> when a domain is configured
+  and analytics are enabled. Disabled in dev/test so local runs never phone
+  home (§11, Appendix D).
+  """
+  attr :domain, :string, required: true
+
+  def plausible_script(assigns) do
+    if analytics_enabled?() and assigns.domain not in [nil, ""] do
+      ~H"""
+      <script
+        defer
+        data-domain={@domain}
+        data-api={plausible_api()}
+        src="https://plausible.io/js/script.manual.outbound-links.js"
+      >
+      </script>
+      <script>
+        window.plausible = window.plausible || function() { (window.plausible.q = window.plausible.q || []).push(arguments) };
+      </script>
+      """
+    else
+      ~H"""
+      <!-- analytics off -->
+      """
+    end
+  end
+
+  defp analytics_enabled? do
+    Application.get_env(:sahla, :analytics_enabled, true)
+  end
+
+  defp plausible_api do
+    # Proxy API through a first-party subdomain avoids ad-blockers and keeps
+    # data on the site's own origin. Falls back to Plausible's default API.
+    Application.get_env(:sahla, :plausible_api_host, "https://plausible.io/api/event")
+  end
+
+  @doc """
   Shows the flash group with standard titles and content.
 
   ## Examples

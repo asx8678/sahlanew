@@ -25,6 +25,7 @@
     <%= if head = assigns[:head] do %>
       {render_slot(head)}
     <% end %>
+    <.plausible_script domain={Application.get_env(:sahla, :plausible_domain)} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
     <script nonce={assigns[:csp_nonce]}>

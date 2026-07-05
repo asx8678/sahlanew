@@ -189,6 +189,8 @@ defmodule SahlaWeb.Admin.LeadLiveTest do
              Leads.list_activities(lead),
              &(&1.kind == :rdv and &1.admin_id == admin.id)
            )
+
+    assert_push_event(lv, "plausible-event", %{name: "callback_booked", props: %{}})
   end
 
   test "unauthenticated access is redirected to the admin login page", %{lead: lead} do

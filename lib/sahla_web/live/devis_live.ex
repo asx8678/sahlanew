@@ -34,6 +34,7 @@ defmodule SahlaWeb.DevisLive do
           step = step_atom(quote.current_step)
 
           socket
+          |> push_event("plausible-event", %{name: "funnel_start", props: %{source: "resume"}})
           |> assign(:expired, false)
           |> assign(:quote, quote)
           |> assign(:current_step, quote.current_step)
@@ -46,7 +47,13 @@ defmodule SahlaWeb.DevisLive do
 
   def mount(_params, _session, socket) do
     {:ok, quote} = Quoting.create_quote(locale: socket.assigns.locale)
-    {:ok, redirect(socket, to: ~p"/devis/#{quote.token}")}
+
+    socket =
+      socket
+      |> push_event("plausible-event", %{name: "funnel_start", props: %{source: "new"}})
+      |> redirect(to: ~p"/devis/#{quote.token}")
+
+    {:ok, socket}
   end
 
   @impl true

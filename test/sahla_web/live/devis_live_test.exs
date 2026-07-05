@@ -76,4 +76,12 @@ defmodule SahlaWeb.DevisLiveTest do
     {:ok, _lv, html} = live(conn, ~p"/devis/#{quote.token}")
     assert html =~ "This quote link has expired"
   end
+
+  test "mounting a resumed quote pushes a funnel_start plausible event", %{conn: conn} do
+    {:ok, quote} = Quoting.create_quote(%{locale: "fr"})
+
+    {:ok, lv, _html} = live(conn, ~p"/devis/#{quote.token}")
+
+    assert_push_event(lv, "plausible-event", %{name: "funnel_start", props: %{source: "resume"}})
+  end
 end

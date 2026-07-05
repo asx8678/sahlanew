@@ -35,7 +35,7 @@ config :swoosh, :api_client, false
 # Print only warnings and errors during test
 config :logger, level: :warning
 
-# Initialize plugs at runtime for faster test compilation
+# Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
 
 # Enable helpful, but potentially expensive runtime checks
@@ -45,3 +45,6 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# Analytics are disabled in test so local runs never phone home.
+config :sahla, :analytics_enabled, false

@@ -39,4 +39,32 @@ defmodule SahlaWeb.LayoutsTest do
     html = html_response(conn, 200)
     refute html =~ "Bonjour"
   end
+
+  test "plausible script is not rendered by default in test", %{conn: conn} do
+    conn = get(conn, ~p"/")
+    html = html_response(conn, 200)
+    refute html =~ "plausible.io"
+    assert html =~ "<!-- analytics off -->"
+  end
+
+  test "plausible script renders in head when enabled and domain configured", %{conn: conn} do
+    original_domain = Application.get_env(:sahla, :plausible_domain)
+    original_enabled = Application.get_env(:sahla, :analytics_enabled)
+
+    on_exit(fn ->
+      Application.put_env(:sahla, :plausible_domain, original_domain)
+      Application.put_env(:sahla, :analytics_enabled, original_enabled)
+    end)
+
+    Application.put_env(:sahla, :plausible_domain, "sahla.ma")
+    Application.put_env(:sahla, :analytics_enabled, true)
+
+    conn = get(conn, ~p"/")
+    html = html_response(conn, 200)
+
+    assert html =~ ~S(data-domain="sahla.ma")
+    assert html =~ "plausible.io/js/script.manual.outbound-links.js"
+    # The script must live inside <head>, before the app.js script.
+    assert html =~ ~r/<head>.*plausible\.io.*<script defer phx-track-static/ms
+  end
 end

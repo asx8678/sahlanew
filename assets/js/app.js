@@ -37,6 +37,22 @@ topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
 window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 
+// Privacy-friendly Plausible goal events (§11, Appendix D). PII (phone, CIN,
+// token, email) must NEVER be sent as props.
+window.addEventListener("phx:plausible-goal", (e) => {
+  const {name, props = {}} = e.detail || {}
+  if (typeof window.plausible === "function" && name) {
+    window.plausible("Goal", {name, props})
+  }
+})
+
+window.addEventListener("phx:plausible-event", (e) => {
+  const {name, props = {}} = e.detail || {}
+  if (typeof window.plausible === "function" && name) {
+    window.plausible(name, props)
+  }
+})
+
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 

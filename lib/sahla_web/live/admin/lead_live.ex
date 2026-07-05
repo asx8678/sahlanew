@@ -208,6 +208,7 @@ defmodule SahlaWeb.Admin.LeadLive do
              socket
              |> assign(:lead, lead)
              |> refresh_activities()
+             |> push_event("plausible-event", %{name: "callback_booked", props: %{}})
              |> put_flash(:info, gettext("Callback scheduled"))}
 
           {:error, _changeset} ->
