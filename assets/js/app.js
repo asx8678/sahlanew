@@ -26,10 +26,54 @@ import {hooks as colocatedHooks} from "phoenix-colocated/sahla"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
+
+const Hooks = {
+  ...colocatedHooks,
+
+  // Plate mask: formats Moroccan licence plates as 12345-A-67.
+  PlateMask: {
+    mounted() {
+      this.el.addEventListener("input", (e) => {
+        let v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "")
+        if (v.length > 5) v = v.slice(0, 5) + "-" + v.slice(5)
+        if (v.length > 7) v = v.slice(0, 7) + "-" + v.slice(7, 9)
+        e.target.value = v
+      })
+    }
+  },
+
+  // OTP auto-advance: focus the next 4-digit box when a digit is entered.
+  OtpAutoAdvance: {
+    mounted() {
+      const inputs = Array.from(this.el.querySelectorAll("input[data-otp-index]"))
+      inputs.forEach((input, idx) => {
+        input.addEventListener("input", (e) => {
+          const val = e.target.value.replace(/\D/g, "")
+          e.target.value = val.slice(0, 1)
+          if (val && inputs[idx + 1]) inputs[idx + 1].focus()
+          this.pushOtp(inputs)
+        })
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Backspace" && !e.target.value && inputs[idx - 1]) {
+            inputs[idx - 1].focus()
+          }
+        })
+      })
+    },
+
+    pushOtp(inputs) {
+      const code = inputs.map(i => i.value).join("")
+      if (code.length === 6) {
+        this.pushEventTo(this.el, "verify_otp", {code})
+      }
+    }
+  }
+}
+
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: Hooks,
 })
 
 // Show progress bar on live navigation and form submits

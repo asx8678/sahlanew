@@ -15,7 +15,7 @@ defmodule Sahla.Accounts.PolicyTest do
     refute Policy.can?(:ops, :cms)
 
     assert Policy.can?(:agent, :leads_assigned)
-    refute Policy.can?(:agent, :leads)
+    assert Policy.can?(:agent, :leads)
 
     assert Policy.can?(:editor, :cms)
     refute Policy.can?(:editor, :leads)

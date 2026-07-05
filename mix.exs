@@ -101,7 +101,10 @@ defmodule Sahla.MixProject do
       {:phoenix_test, "~> 0.7", only: :test, runtime: false},
 
       # CMS markdown → sanitized HTML (§7.4 shortlist; rao.1).
-      {:mdex, "~> 0.13"}
+      {:mdex, "~> 0.13"},
+
+      # Image re-encoding for uploads (§12) — strips EXIF and embedded payloads.
+      {:image, "~> 0.69"}
     ]
   end
 

@@ -119,7 +119,8 @@ defmodule Sahla.Accounts.OTPTest do
       good = last_code()
 
       past = DateTime.add(DateTime.utc_now(), -1, :second) |> DateTime.truncate(:second)
-      Repo.update_all(from(o in OTP, where: o.phone_hash == ^p), set: [expires_at: past])
+      {:ok, phone_hash} = Sahla.Hashed.HMAC.dump(p)
+      Repo.update_all(from(o in OTP, where: o.phone_hash == ^phone_hash), set: [expires_at: past])
 
       assert {:error, :expired} = OTP.verify_otp(quote, p, good)
     end

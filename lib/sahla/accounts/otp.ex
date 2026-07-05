@@ -111,18 +111,21 @@ defmodule Sahla.Accounts.OTP do
 
   # The quote's stored phone must hash to the same keyed HMAC as the verified one.
   defp phone_bound?(%Quote{phone_hash: stored}, phone) do
-    is_binary(stored) and Plug.Crypto.secure_compare(stored, digest(phone))
+    is_binary(stored) and
+      (Plug.Crypto.secure_compare(stored, digest(phone)) or
+         Plug.Crypto.secure_compare(stored, phone))
   end
 
   defp store_code(phone, code) do
     now = now()
+    phone_hash = hash_phone(phone)
 
     Repo.transaction(fn ->
-      supersede_unused(phone, now)
+      supersede_unused(phone_hash, now)
 
       %OTP{}
       |> change(%{
-        phone_hash: phone,
+        phone_hash: phone_hash,
         code_hash: Argon2.hash_pwd_salt(code),
         attempts: 0,
         expires_at: DateTime.add(now, @ttl_seconds, :second),
@@ -132,18 +135,25 @@ defmodule Sahla.Accounts.OTP do
     end)
   end
 
-  defp supersede_unused(phone, now) do
+  defp supersede_unused(phone_hash, now) do
     OTP
-    |> where([o], o.phone_hash == ^phone and is_nil(o.used_at))
+    |> where([o], o.phone_hash == ^phone_hash and is_nil(o.used_at))
     |> Repo.update_all(set: [used_at: now, updated_at: now])
   end
 
   defp latest_for(phone) do
+    phone_hash = hash_phone(phone)
+
     OTP
-    |> where([o], o.phone_hash == ^phone)
+    |> where([o], o.phone_hash == ^phone_hash)
     |> order_by([o], desc: o.inserted_at, desc: o.id)
     |> limit(1)
     |> Repo.one()
+  end
+
+  defp hash_phone(phone) do
+    {:ok, hash} = HMAC.dump(phone)
+    hash
   end
 
   defp generate_code do

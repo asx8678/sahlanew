@@ -13,6 +13,9 @@ defmodule SahlaWeb.Router do
     # Strict, LiveView-safe CSP with a per-request nonce, plus frame/referrer/
     # permissions headers (§12).
     plug SahlaWeb.Plugs.SecureHeaders
+    # Make admin session available on public routes so authenticated-file
+    # serving can authorize admins without a separate pipeline.
+    plug :fetch_current_admin
   end
 
   # Admin tier: a distinct pipeline so authentication/authorization (r5o.3,
@@ -46,6 +49,14 @@ defmodule SahlaWeb.Router do
     get "/health", HealthController, :index
     get "/sitemap.xml", SitemapController, :sitemap
     get "/robots.txt", SitemapController, :robots
+  end
+
+  # Private uploads (§12): served by an authenticated controller, never from
+  # the static directory. The quote-token path is used for funnel relevé docs.
+  scope "/uploads", SahlaWeb do
+    pipe_through :browser
+
+    get "/:basename", UploadController, :show
   end
 
   # Public routes are mirrored under `/` (French) and `/ar` (Arabic) so every page
@@ -119,6 +130,7 @@ defmodule SahlaWeb.Router do
     scope "/admin", SahlaWeb.Admin, as: :admin do
       pipe_through [:admin, :require_admin, :admin_layout]
 
+      live "/leads", LeadsLive.Index, :index
       live "/leads/:id", LeadLive, :show
     end
   end

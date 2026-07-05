@@ -2,17 +2,29 @@ defmodule SahlaWeb.DevisLive do
   @moduledoc """
   Resumable quote funnel shell (§5.2, §6.2, §7.3).
 
-  - Mount loads or creates a quote by token and resumes at its current step.
-  - phx-change autosaves the active step through `Quoting.upsert_step/3`.
-  - Continuer/Retour navigate between steps; current_step only advances.
-  - Expired quotes render a guarded state outside any stream container.
+  Mount loads or creates a quote by token and resumes at its current step.
+  phx-change autosaves the active step through `Quoting.upsert_step/3`.
+  Continuer/Retour navigate between steps; current_step only advances.
+  Expired quotes render a guarded state outside any stream container.
+
+  Step forms are rendered as function components that receive the current
+  quote and changeset. Server-side autocomplete, OTP verification and consent
+  capture are handled via dedicated handle_event clauses.
   """
   use SahlaWeb, :live_view
 
+  alias Sahla.Accounts.OTP
+  alias Sahla.Cities
+  alias Sahla.Compliance
   alias Sahla.Quoting
+  alias Sahla.Quoting.Enums
+  alias Sahla.Vehicles
+  alias Sahla.Vehicles.Catalog
 
   @steps Quoting.steps()
   @step_count length(@steps)
+
+
 
   @impl true
   def mount(%{"token" => token}, _session, socket) do
@@ -40,6 +52,7 @@ defmodule SahlaWeb.DevisLive do
           |> assign(:current_step, quote.current_step)
           |> assign(:step, step)
           |> assign(:changeset, nil)
+          |> reset_otp_state()
       end
 
     {:ok, socket}
@@ -66,13 +79,23 @@ defmodule SahlaWeb.DevisLive do
     step = socket.assigns.step
     quote = socket.assigns.quote
 
+    params = normalize_step_params(params, step)
+
+    # Record free-text vehicles only when the user is typing them intentionally.
+    maybe_record_unmatched(params)
+
     case Quoting.upsert_step(quote, step, params) do
       {:ok, quote} ->
-        {:noreply,
-         socket
-         |> assign(:quote, quote)
-         |> assign(:current_step, quote.current_step)
-         |> assign(:changeset, nil)}
+        socket =
+          socket
+          |> assign(:quote, quote)
+          |> assign(:current_step, quote.current_step)
+          |> assign(:changeset, nil)
+
+        # If the phone changed, reset OTP verification UI.
+        socket = maybe_reset_otp_on_phone_change(socket, step, params)
+
+        {:noreply, socket}
 
       {:error, changeset} ->
         {:noreply, assign(socket, :changeset, changeset)}
@@ -86,12 +109,14 @@ defmodule SahlaWeb.DevisLive do
       next_step = current + 1
       {:ok, quote} = update_step(socket.assigns.quote, next_step)
 
-      {:noreply,
-       socket
-       |> assign(:current_step, next_step)
-       |> assign(:step, step_atom(next_step))
-       |> assign(:quote, quote)
-       |> assign(:changeset, nil)}
+      socket =
+        socket
+        |> assign(:current_step, next_step)
+        |> assign(:step, step_atom(next_step))
+        |> assign(:quote, quote)
+        |> assign(:changeset, nil)
+
+      {:noreply, socket}
     else
       {:noreply, socket}
     end
@@ -112,6 +137,146 @@ defmodule SahlaWeb.DevisLive do
        |> assign(:changeset, nil)}
     else
       {:noreply, socket}
+    end
+  end
+
+  # --- Step 1: vehicle autocomplete ------------------------------------------
+
+  def handle_event("suggest_makes", %{"query" => query}, socket) do
+    suggestions = Catalog.search_makes(query, limit: 6)
+    {:noreply, assign(socket, :make_suggestions, suggestions)}
+  end
+
+  def handle_event("suggest_models", %{"query" => query, "make_id" => make_id}, socket) do
+    suggestions =
+      if make_id != "" do
+        Catalog.search_models(make_id, query, limit: 6)
+      else
+        []
+      end
+
+    {:noreply, assign(socket, :model_suggestions, suggestions)}
+  end
+
+  def handle_event("suggest_versions", %{"query" => query, "model_id" => model_id}, socket) do
+    suggestions =
+      if model_id != "" do
+        Catalog.search_versions(model_id, query, limit: 6)
+      else
+        []
+      end
+
+    {:noreply, assign(socket, :version_suggestions, suggestions)}
+  end
+
+  def handle_event("pick_make", %{"make_id" => id, "make_name" => name}, socket) do
+    {:ok, quote} = Quoting.upsert_step(socket.assigns.quote, :vehicle, %{"make_id" => id})
+
+    {:noreply,
+     socket
+     |> assign(:quote, quote)
+     |> assign(:make_suggestions, [])
+     |> push_event("autofill-make", %{name: name})}
+  end
+
+  def handle_event("pick_model", %{"model_id" => id, "model_name" => name}, socket) do
+    {:ok, quote} = Quoting.upsert_step(socket.assigns.quote, :vehicle, %{"model_id" => id})
+
+    {:noreply,
+     socket
+     |> assign(:quote, quote)
+     |> assign(:model_suggestions, [])
+     |> push_event("autofill-model", %{name: name})}
+  end
+
+  def handle_event("pick_version", %{"version_id" => id, "version_name" => name}, socket) do
+    power = Vehicles.fiscal_power_for_version(id) || ""
+
+    attrs = %{"version_id" => id, "fiscal_power" => power}
+
+    {:ok, quote} = Quoting.upsert_step(socket.assigns.quote, :vehicle, attrs)
+
+    {:noreply,
+     socket
+     |> assign(:quote, quote)
+     |> assign(:version_suggestions, [])
+     |> push_event("autofill-version", %{name: name, power: to_string(power)})}
+  end
+
+  # --- Step 4: OTP -----------------------------------------------------------
+
+  def handle_event("request_otp", _params, socket) do
+    quote = socket.assigns.quote
+    phone = quote.phone_hash && raw_phone(quote)
+
+    if is_binary(phone) do
+      case OTP.request_otp(phone, ip: client_ip(socket)) do
+        {:ok, _otp} ->
+          {:noreply,
+           socket
+           |> assign(:otp_requested_at, DateTime.utc_now())
+           |> assign(:otp_error, nil)
+           |> put_flash(:info, gettext("Code sent"))}
+
+        {:error, {:rate_limited, retry_after}} ->
+          {:noreply,
+           socket
+           |> assign(:otp_error, gettext("Too many attempts; wait %{s}s", s: retry_after))}
+
+        {:error, reason} ->
+          {:noreply, assign(socket, :otp_error, otp_error_message(reason))}
+      end
+    else
+      {:noreply, assign(socket, :otp_error, gettext("Enter a phone number first"))}
+    end
+  end
+
+  def handle_event("verify_otp", %{"code" => code}, socket) do
+    quote = Quoting.get_quote_by_token(socket.assigns.quote.token)
+    phone = raw_phone(quote)
+
+    if is_binary(phone) do
+      case OTP.verify_otp(quote, phone, code) do
+        {:ok, _quote} ->
+          {:noreply,
+           socket
+           |> assign(:quote, Quoting.get_quote_by_token(quote.token))
+           |> assign(:otp_error, nil)}
+
+        {:error, reason} ->
+          {:noreply, assign(socket, :otp_error, otp_verify_error_message(reason))}
+      end
+    else
+      {:noreply, assign(socket, :otp_error, gettext("Enter a phone number first"))}
+    end
+  end
+
+  # --- Consent capture -------------------------------------------------------
+
+  def handle_event("capture_consents", %{
+        "consent_cgu" => cgu,
+        "consent_transmission" => transmission,
+        "consent_marketing" => marketing
+      }, socket) do
+    quote = socket.assigns.quote
+
+    case Compliance.capture_consents(quote, %{
+           cgu: cgu == "true",
+           transmission: transmission == "true",
+           marketing: marketing == "true",
+           ip: client_ip(socket)
+         }) do
+      {:ok, _consents} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, gettext("Consent recorded"))
+         |> push_event("consents-captured", %{})}
+
+      {:error, :consent_required} ->
+        {:noreply, assign(socket, :consent_error, gettext("Required consents are missing"))}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :consent_error, format_changeset_errors(changeset))}
     end
   end
 
@@ -136,7 +301,18 @@ defmodule SahlaWeb.DevisLive do
           <.progress current_step={@current_step} />
 
           <.card class="mt-6">
-            <.step_form step={@step} changeset={@changeset} current_step={@current_step} />
+            <.step_form
+              step={@step}
+              quote={@quote}
+              changeset={@changeset}
+              current_step={@current_step}
+              make_suggestions={Map.get(assigns, :make_suggestions, [])}
+              model_suggestions={Map.get(assigns, :model_suggestions, [])}
+              version_suggestions={Map.get(assigns, :version_suggestions, [])}
+              otp_error={Map.get(assigns, :otp_error)}
+              otp_requested_at={Map.get(assigns, :otp_requested_at)}
+              consent_error={Map.get(assigns, :consent_error)}
+            />
           </.card>
 
           <div class="mt-6 flex items-center justify-between gap-4">
@@ -151,7 +327,7 @@ defmodule SahlaWeb.DevisLive do
             <.button
               variant="primary"
               phx-click="continue"
-              disabled={@current_step == 4}
+              disabled={!can_continue?(@step, @quote, @changeset)}
             >
               {gettext("Continue")}
             </.button>
@@ -198,73 +374,431 @@ defmodule SahlaWeb.DevisLive do
   end
 
   attr :step, :atom, required: true
+  attr :quote, :any, required: true
   attr :changeset, :any, default: nil
   attr :current_step, :integer, required: true
+  attr :make_suggestions, :list, default: []
+  attr :model_suggestions, :list, default: []
+  attr :version_suggestions, :list, default: []
+  attr :otp_error, :any, default: nil
+  attr :otp_requested_at, :any, default: nil
+  attr :consent_error, :any, default: nil
 
   defp step_form(%{step: :vehicle} = assigns) do
+    quote = assigns.quote
+
+    assigns =
+      assigns
+      |> assign(:makes, Vehicles.list_makes())
+      |> assign(:cities, Cities.list_cities())
+      |> assign(:autocomplete_mode, Map.get(assigns, :autocomplete_mode, true))
+      |> assign(:vehicle, vehicle_defaults(quote))
+      |> assign(:errors, step_errors(assigns.changeset))
+      |> assign(:value_required, quote.formula in Enums.valued_formulas())
+
     ~H"""
-    <form phx-change="autosave" class="space-y-4">
+    <form phx-change="autosave" class="space-y-5" id="vehicle-form">
       <h2 class="text-xl font-semibold text-ink">{gettext("Your vehicle")}</h2>
+
+      <.input type="hidden" name="step[is_new_ww]" value={to_string(@vehicle[:is_new_ww])} />
+
+      <div class="flex items-center justify-between gap-4 rounded-card border border-ink/10 bg-surface p-4">
+        <span class="text-sm font-medium text-ink">{gettext("New vehicle / hors-série (WW)")}</span>
+        <button
+          type="button"
+          phx-click={JS.push("autosave", value: %{step: %{is_new_ww: to_string(!@vehicle[:is_new_ww])}})}
+          class={[
+            "relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+            @vehicle[:is_new_ww] && "bg-primary",
+            !@vehicle[:is_new_ww] && "bg-ink/20"
+          ]}
+          role="switch"
+          aria-checked={to_string(@vehicle[:is_new_ww])}
+        >
+          <span
+            class={[
+              "inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+              @vehicle[:is_new_ww] && "translate-x-5",
+              !@vehicle[:is_new_ww] && "translate-x-0"
+            ]}
+          />
+        </button>
+      </div>
+
+      <div :if={!@vehicle[:is_new_ww]} class="space-y-2">
+        <.input
+          name="step[plate]"
+          label={gettext("Licence plate")}
+          value={@vehicle[:plate]}
+          placeholder="12345-A-67"
+          phx-hook="PlateMask"
+          maxlength="10"
+          errors={@errors[:plate] || []}
+        />
+        <p class="text-xs text-ink/60">{gettext("Format: 12345-A-67")}</p>
+      </div>
+
+      <.input type="hidden" name="step[autocomplete]" value={to_string(@vehicle[:autocomplete])} />
+
+      <div :if={@vehicle[:autocomplete]} class="space-y-3">
+        <.autocomplete_input
+          name="make"
+          label={gettext("Make")}
+          selected_id={@vehicle[:make_id]}
+          selected_name={@vehicle[:make_name]}
+          event="suggest_makes"
+          suggestions={@make_suggestions}
+        />
+        <.autocomplete_input
+          name="model"
+          label={gettext("Model")}
+          selected_id={@vehicle[:model_id]}
+          selected_name={@vehicle[:model_name]}
+          event="suggest_models"
+          suggestions={@model_suggestions}
+        />
+        <.autocomplete_input
+          name="version"
+          label={gettext("Version")}
+          selected_id={@vehicle[:version_id]}
+          selected_name={@vehicle[:version_name]}
+          event="suggest_versions"
+          suggestions={@version_suggestions}
+        />
+      </div>
+
+      <div :if={!@vehicle[:autocomplete]} class="space-y-3">
+        <.input
+          name="step[raw_make]"
+          label={gettext("Make (free text)")}
+          value={@vehicle[:raw_make]}
+          errors={@errors[:raw_make] || []}
+        />
+        <.input
+          name="step[raw_model]"
+          label={gettext("Model (free text)")}
+          value={@vehicle[:raw_model]}
+          errors={@errors[:raw_model] || []}
+        />
+        <.input
+          name="step[raw_version]"
+          label={gettext("Version (free text)")}
+          value={@vehicle[:raw_version]}
+          errors={@errors[:raw_version] || []}
+        />
+      </div>
+
+      <button
+        type="button"
+        phx-click={JS.push("autosave", value: %{step: %{autocomplete: to_string(!@vehicle[:autocomplete])}})}
+        class="text-sm font-medium text-primary hover:underline"
+      >
+        <%= if @vehicle[:autocomplete] do %>
+          {gettext("My vehicle is not in the list — type it manually")}
+        <% else %>
+          {gettext("Choose from the catalog instead")}
+        <% end %>
+      </button>
+
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <.input
+          name="step[fiscal_power]"
+          type="number"
+          label={gettext("Fiscal power (CV)")}
+          value={@vehicle[:fiscal_power]}
+          min="1"
+          errors={@errors[:fiscal_power] || []}
+        />
+        <.input
+          name="step[fuel]"
+          type="select"
+          label={gettext("Fuel")}
+          options={fuel_options()}
+          value={@vehicle[:fuel]}
+          prompt={gettext("Choose fuel")}
+          errors={@errors[:fuel] || []}
+        />
+      </div>
+
       <.input
-        name="step[plate]"
-        label={gettext("Licence plate")}
-        value={field_value(@changeset, :plate)}
+        name="step[first_registration]"
+        type="date"
+        label={gettext("First registration date")}
+        value={@vehicle[:first_registration]}
+        errors={@errors[:first_registration] || []}
       />
-      <p class="text-sm text-ink/60">
-        {gettext("Step %{step} placeholder — vehicle form coming next.", step: @current_step)}
-      </p>
+
+      <.input
+        :if={@value_required}
+        name="step[vehicle_value_centimes]"
+        type="number"
+        label={gettext("Vehicle value (MAD)")}
+        value={@vehicle[:vehicle_value_centimes]}
+        min="1"
+        required
+        errors={@errors[:vehicle_value_centimes] || []}
+      />
+
+      <fieldset class="space-y-2">
+        <legend class="text-sm font-medium text-ink">{gettext("Usage")}</legend>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <.option_card
+            :for={{label, value} <- usage_options()}
+            name="step[usage]"
+            value={value}
+            label={label}
+            selected={@vehicle[:usage] == value}
+          />
+        </div>
+      </fieldset>
+
+      <fieldset class="space-y-2">
+        <legend class="text-sm font-medium text-ink">{gettext("City")}</legend>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <.option_card
+            :for={city <- @cities}
+            name="step[city_id]"
+            value={city.id}
+            label={city.name_fr}
+            selected={@vehicle[:city_id] == to_string(city.id)}
+          />
+        </div>
+      </fieldset>
+
+      <fieldset class="space-y-2">
+        <legend class="text-sm font-medium text-ink">{gettext("Parking")}</legend>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <.option_card
+            :for={{label, value} <- parking_options()}
+            name="step[parking]"
+            value={value}
+            label={label}
+            selected={@vehicle[:parking] == value}
+          />
+        </div>
+      </fieldset>
+    </form>
+    """
+  end
+
+  defp step_form(%{step: :coverage} = assigns) do
+    coverage = coverage_defaults(assigns.quote)
+    errors = step_errors(assigns.changeset)
+
+    assigns =
+      assigns
+      |> assign(:coverage, coverage)
+      |> assign(:errors, errors)
+
+    ~H"""
+    <form phx-change="autosave" class="space-y-5" id="coverage-form">
+      <h2 class="text-xl font-semibold text-ink">{gettext("Coverage")}</h2>
+
+      <fieldset class="space-y-2">
+        <legend class="text-sm font-medium text-ink">{gettext("Choose your formula")}</legend>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <.option_card
+            name="step[formula]"
+            value="rc"
+            label={gettext("RC seule")}
+            description={gettext("Civil liability — mandatory third-party coverage.")}
+            selected={@coverage[:formula] == "rc"}
+          />
+          <.option_card
+            name="step[formula]"
+            value="tiers_etendu"
+            label={gettext("Tiers étendu")}
+            description={gettext("Third-party plus theft, fire and glass breakage.")}
+            selected={@coverage[:formula] == "tiers_etendu"}
+          />
+          <.option_card
+            name="step[formula]"
+            value="tous_risques"
+            label={gettext("Tous risques")}
+            description={gettext("Full cover including accidental damage to your vehicle.")}
+            selected={@coverage[:formula] == "tous_risques"}
+          />
+        </div>
+      </fieldset>
+
+      <fieldset class="space-y-2">
+        <legend class="text-sm font-medium text-ink">{gettext("Guarantee options")}</legend>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <.coverage_option
+            :for={{label, code} <- guarantee_options()}
+            code={code}
+            label={label}
+            checked={code in @coverage[:options]}
+            disabled={code == "evcat"}
+          />
+        </div>
+      </fieldset>
+
+      <fieldset :if={@coverage[:formula] not in [nil, "rc"]} class="space-y-2">
+        <legend class="text-sm font-medium text-ink">{gettext("Franchise preference")}</legend>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <.option_card
+            :for={{label, value} <- franchise_options()}
+            name="step[franchise_pref]"
+            value={value}
+            label={label}
+            selected={@coverage[:franchise_pref] == value}
+          />
+        </div>
+      </fieldset>
+
+      <.input
+        name="step[effect_date]"
+        type="date"
+        label={gettext("Coverage effective date")}
+        value={@coverage[:effect_date]}
+        errors={@errors[:effect_date] || []}
+      />
+
+      <input type="hidden" name="step[options][]" value="evcat" />
     </form>
     """
   end
 
   defp step_form(%{step: :driver} = assigns) do
     ~H"""
-    <form phx-change="autosave" class="space-y-4">
+    <form phx-change="autosave" class="space-y-4" id="driver-form">
       <h2 class="text-xl font-semibold text-ink">{gettext("Driver profile")}</h2>
       <.input
         name="step[birth_date]"
         type="date"
         label={gettext("Birth date")}
-        value={field_value(@changeset, :birth_date)}
+        value={field_value(assigns.changeset, :birth_date)}
       />
       <p class="text-sm text-ink/60">
-        {gettext("Step %{step} placeholder — driver form coming next.", step: @current_step)}
-      </p>
-    </form>
-    """
-  end
-
-  defp step_form(%{step: :coverage} = assigns) do
-    ~H"""
-    <form phx-change="autosave" class="space-y-4">
-      <h2 class="text-xl font-semibold text-ink">{gettext("Coverage")}</h2>
-      <.input
-        name="step[formula]"
-        type="select"
-        label={gettext("Formula")}
-        options={[Tiers: "tiers", "Tiers+": "tiers_plus", "Tous risques": "tous_risques"]}
-        value={field_value(@changeset, :formula)}
-      />
-      <p class="text-sm text-ink/60">
-        {gettext("Step %{step} placeholder — coverage form coming next.", step: @current_step)}
+        {gettext("Step %{step} placeholder — driver form coming next.", step: assigns.current_step)}
       </p>
     </form>
     """
   end
 
   defp step_form(%{step: :contact} = assigns) do
+    quote = assigns.quote
+    verified? = not is_nil(quote.phone_verified_at)
+
+    assigns =
+      assigns
+      |> assign(:contact, contact_defaults(quote))
+      |> assign(:cities, Cities.list_cities())
+      |> assign(:verified, verified?)
+      |> assign(:errors, step_errors(assigns.changeset))
+      |> assign(:otp_requested_at, Map.get(assigns, :otp_requested_at))
+
     ~H"""
-    <form phx-change="autosave" class="space-y-4">
+    <form phx-change="autosave" phx-submit="capture_consents" class="space-y-5" id="contact-form">
       <h2 class="text-xl font-semibold text-ink">{gettext("Contact details")}</h2>
+
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <.input
+          name="step[first_name]"
+          label={gettext("First name")}
+          value={@contact[:first_name]}
+          required
+        />
+        <.input
+          name="step[last_name]"
+          label={gettext("Last name")}
+          value={@contact[:last_name]}
+          required
+        />
+      </div>
+
       <.input
         name="step[phone]"
         type="tel"
         label={gettext("Phone")}
-        value={field_value(@changeset, :phone)}
+        value={@contact[:phone]}
+        placeholder="0612345678"
+        required
       />
-      <p class="text-sm text-ink/60">
-        {gettext("Step %{step} placeholder — contact form coming next.", step: @current_step)}
-      </p>
+
+      <.input
+        name="step[email]"
+        type="email"
+        label={gettext("Email (optional)")}
+        value={@contact[:email]}
+      />
+      <p class="text-xs text-ink/60">{gettext("Receive your quote summary by email.")}</p>
+
+      <.input
+        name="step[city_id]"
+        type="select"
+        label={gettext("City")}
+        options={Enum.map(@cities, fn c -> {c.name_fr, c.id} end)}
+        value={@contact[:city_id]}
+        prompt={gettext("Choose city")}
+      />
+
+      <div class="rounded-card border border-ink/10 bg-surface p-4 space-y-3">
+        <h3 class="font-medium text-ink">{gettext("Verify your phone")}</h3>
+
+        <.button type="button" variant="secondary" phx-click="request_otp" disabled={@verified}>
+          {gettext("Send verification code")}
+        </.button>
+
+        <%= if @verified do %>
+          <p class="text-sm text-success">{gettext("Phone verified")}</p>
+        <% else %>
+          <div id="otp-inputs" phx-hook="OtpAutoAdvance" class="flex gap-2">
+            <input
+              :for={idx <- 0..5}
+              type="text"
+              inputmode="numeric"
+              maxlength="1"
+              data-otp-index={idx}
+              class="w-10 input text-center"
+              autocomplete="one-time-code"
+            />
+          </div>
+
+        <% end %>
+
+        <label :if={not @verified} class="block space-y-1">
+          <span class="text-sm font-medium text-ink">{gettext("Verification code")}</span>
+          <input
+            type="text"
+            name="code"
+            maxlength="6"
+            placeholder="123456"
+            phx-change="verify_otp"
+            class="w-full input"
+          />
+        </label>
+
+        <p :if={@otp_error} class="text-sm text-error">{@otp_error}</p>
+      </div>
+
+      <fieldset class="space-y-2">
+        <legend class="text-sm font-medium text-ink">{gettext("Consents")}</legend>
+
+        <label class="flex items-start gap-3 rounded-card border border-ink/10 bg-surface p-3">
+          <input type="checkbox" name="consent_cgu" value="true" class="checkbox checkbox-sm mt-0.5" required />
+          <span class="text-sm text-ink/80">
+            {gettext("I accept the CGU and privacy policy")} *
+          </span>
+        </label>
+
+        <label class="flex items-start gap-3 rounded-card border border-ink/10 bg-surface p-3">
+          <input type="checkbox" name="consent_transmission" value="true" class="checkbox checkbox-sm mt-0.5" required />
+          <span class="text-sm text-ink/80">
+            {gettext("I agree to share my data with partner insurers")} *
+          </span>
+        </label>
+
+        <label class="flex items-start gap-3 rounded-card border border-ink/10 bg-surface p-3">
+          <input type="checkbox" name="consent_marketing" value="true" class="checkbox checkbox-sm mt-0.5" />
+          <span class="text-sm text-ink/80">
+            {gettext("I agree to receive offers and news (optional)")}
+          </span>
+        </label>
+      </fieldset>
+
+      <p :if={@consent_error} class="text-sm text-error">{@consent_error}</p>
     </form>
     """
   end
@@ -275,16 +809,177 @@ defmodule SahlaWeb.DevisLive do
     """
   end
 
-  defp step_label(:vehicle), do: gettext("Vehicle")
-  defp step_label(:driver), do: gettext("Driver")
-  defp step_label(:coverage), do: gettext("Coverage")
-  defp step_label(:contact), do: gettext("Contact")
+  attr :name, :string, required: true
+  attr :label, :string, required: true
+  attr :selected_id, :any, default: nil
+  attr :selected_name, :string, default: nil
+  attr :event, :string, required: true
+  attr :suggestions, :list, default: []
+
+  defp autocomplete_input(assigns) do
+    ~H"""
+    <div class="autocomplete relative space-y-1" data-kind={@name}>
+      <label class="label" for={"autocomplete-#{@name}"}>{@label}</label>
+      <input
+        type="text"
+        id={"autocomplete-#{@name}"}
+        name="autocomplete_#{@name}"
+        value={@selected_name}
+        placeholder={gettext("Search…")}
+        phx-debounce="300"
+        phx-change={@event}
+        class="w-full input"
+        autocomplete="off"
+      />
+      <input type="hidden" name="step[#{@name}_id]" value={@selected_id} />
+      <ul :if={@suggestions != []} class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-card border border-ink/10 bg-surface shadow-soft">
+        <li
+          :for={item <- @suggestions}
+          class="cursor-pointer px-3 py-2 text-sm hover:bg-bg"
+          phx-click={"pick_#{@name}"}
+          phx-value-id={item.id}
+          phx-value-name={item.name}
+        >
+          {item.name}
+        </li>
+      </ul>
+    </div>
+    """
+  end
+
+  attr :code, :string, required: true
+  attr :label, :string, required: true
+  attr :checked, :boolean, default: false
+  attr :disabled, :boolean, default: false
+
+  defp coverage_option(assigns) do
+    ~H"""
+    <label
+      class={[
+        "group relative flex cursor-pointer items-center gap-3 rounded-card border-2 p-4 transition-colors",
+        @checked && !@disabled && "border-primary bg-primary/5",
+        !@checked && !@disabled && "border-ink/10 bg-surface hover:border-ink/20",
+        @disabled && "cursor-default border-ink/10 bg-surface opacity-80"
+      ]}
+    >
+      <input
+        type="checkbox"
+        name="step[options][]"
+        value={@code}
+        checked={@checked}
+        disabled={@disabled}
+        class="checkbox checkbox-sm"
+      />
+      <span class={["font-medium text-ink", @disabled && "text-ink/70"]}>{@label}</span>
+    </label>
+    """
+  end
+
+  # --- Helpers ---------------------------------------------------------------
+
+  defp vehicle_defaults(quote) do
+    %{
+      plate: quote.plate || "",
+      is_new_ww: quote.is_new_ww || false,
+      autocomplete: true,
+      make_id: safe_string_id(quote.make_id),
+      make_name: "",
+      model_id: safe_string_id(quote.model_id),
+      model_name: "",
+      version_id: safe_string_id(quote.version_id),
+      version_name: "",
+      raw_make: "",
+      raw_model: "",
+      raw_version: "",
+      fiscal_power: quote.fiscal_power || "",
+      fuel: to_string(quote.fuel || ""),
+      first_registration: format_date(quote.first_registration),
+      usage: to_string(quote.usage || ""),
+      city_id: safe_string_id(quote.city_id),
+      parking: to_string(quote.parking || ""),
+      vehicle_value_centimes: quote.vehicle_value_centimes || ""
+    }
+  end
+
+  defp coverage_defaults(quote) do
+    formula = quote.formula || :rc
+    formula_str = to_string(formula)
+
+    options =
+      case quote.options do
+        nil -> ["evcat"]
+        list -> Enum.uniq(list ++ ["evcat"])
+      end
+
+    effect_date =
+      format_non_empty_date(quote.effect_date) ||
+        format_non_empty_date(quote.current_expiry) ||
+        Date.to_iso8601(Date.utc_today())
+
+    %{
+      formula: formula_str,
+      options: options,
+      franchise_pref: to_string(quote.franchise_pref || ""),
+      effect_date: effect_date,
+      value_required: formula in Enums.valued_formulas()
+    }
+  end
+
+  defp contact_defaults(quote) do
+    %{
+      first_name: quote.first_name || "",
+      last_name: quote.last_name || "",
+      phone: raw_phone(quote) || "",
+      email: quote.email || "",
+      city_id: safe_string_id(quote.city_id)
+    }
+  end
+
+  defp raw_phone(quote) do
+    case quote.phone_enc do
+      nil -> nil
+      <<1, _::binary>> = enc ->
+        case Sahla.Encrypted.Binary.load(enc) do
+          {:ok, phone} -> phone
+          _ -> nil
+        end
+      phone ->
+        # Fallback for rows that store the phone in plaintext (legacy / test fixtures).
+        phone
+    end
+  end
+
+  defp safe_string_id(nil), do: nil
+  defp safe_string_id(id), do: to_string(id)
+
+  defp format_date(nil), do: ""
+  defp format_date(%Date{} = date), do: Date.to_iso8601(date)
+
+  defp format_non_empty_date(nil), do: nil
+  defp format_non_empty_date(%Date{} = date), do: Date.to_iso8601(date)
+
+  defp step_errors(nil), do: %{}
+
+  defp step_errors(changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {msg, opts} ->
+      Regex.replace(~r/%\{(\w+)\}/, msg, fn _, key ->
+        to_string(Keyword.get(opts, String.to_atom(key), "..."))
+      end)
+    end)
+    |> Map.new(fn {field, [first | _]} -> {field, [first]} end)
+  end
 
   defp field_value(nil, _field), do: ""
 
   defp field_value(changeset, field) do
     Ecto.Changeset.get_field(changeset, field) || ""
   end
+
+  defp step_label(:vehicle), do: gettext("Vehicle")
+  defp step_label(:driver), do: gettext("Driver")
+  defp step_label(:coverage), do: gettext("Coverage")
+  defp step_label(:contact), do: gettext("Contact")
 
   defp step_atom(number) when is_integer(number) and number > 0 do
     @steps
@@ -296,5 +991,191 @@ defmodule SahlaWeb.DevisLive do
     quote
     |> Ecto.Changeset.change(current_step: next_step)
     |> Sahla.Repo.update()
+  end
+
+  defp normalize_step_params(params, step) do
+    params =
+      params
+      |> Map.new(fn {key, value} -> {key, value} end)
+      |> strip_consent_fields(step)
+
+    Map.update(params, "options", ["evcat"], fn opts ->
+      opts = List.wrap(opts)
+      if "evcat" in opts, do: opts, else: opts ++ ["evcat"]
+    end)
+  end
+
+  defp strip_consent_fields(params, :contact) do
+    Map.drop(params, ["consent_cgu", "consent_transmission", "consent_marketing"])
+  end
+
+  defp strip_consent_fields(params, _step), do: params
+
+  defp maybe_record_unmatched(%{"autocomplete" => "false", "raw_make" => make, "raw_model" => model, "raw_version" => version})
+       when is_binary(make) and make != "" and is_binary(model) and model != "" and is_binary(version) and version != "" do
+    Vehicles.record_unmatched(%{raw_make: make, raw_model: model, raw_version: version})
+  end
+
+  defp maybe_record_unmatched(_params), do: :ok
+
+  defp reset_otp_state(socket) do
+    socket
+    |> assign(:otp_requested_at, nil)
+    |> assign(:otp_error, nil)
+  end
+
+  defp maybe_reset_otp_on_phone_change(socket, :contact, %{
+         "phone" => phone
+       }) do
+    quote = socket.assigns.quote
+
+    if raw_phone(quote) != phone do
+      reset_otp_state(socket)
+    else
+      socket
+    end
+  end
+
+  defp maybe_reset_otp_on_phone_change(socket, _step, _params), do: socket
+
+  defp can_continue?(:vehicle, quote, _changeset) do
+    step = Quoting.validate_step(quote, :vehicle, Map.from_struct(quote) |> step_params())
+    step.valid?
+  end
+
+  defp can_continue?(:driver, quote, _changeset) do
+    step = Quoting.validate_step(quote, :driver, Map.from_struct(quote) |> step_params())
+    step.valid?
+  end
+
+  defp can_continue?(:coverage, quote, _changeset) do
+    step = Quoting.validate_step(quote, :coverage, Map.from_struct(quote) |> step_params())
+    step.valid?
+  end
+
+  defp can_continue?(:contact, quote, _changeset) do
+    phone_verified = not is_nil(quote.phone_verified_at)
+    consents = Compliance.consents_for(quote)
+
+    required_granted =
+      [:cgu, :transmission]
+      |> Enum.all?(fn kind ->
+        Enum.any?(consents, fn c -> c.kind == kind and c.granted end)
+      end)
+
+    phone_verified and required_granted
+  end
+
+  defp step_params(map) do
+    Map.take(map, [
+      :plate,
+      :is_new_ww,
+      :make_id,
+      :model_id,
+      :version_id,
+      :fiscal_power,
+      :fuel,
+      :first_registration,
+      :vehicle_value_centimes,
+      :usage,
+      :city_id,
+      :parking,
+      :birth_date,
+      :license_date,
+      :is_public_servant,
+      :current_insurer_id,
+      :current_expiry,
+      :at_fault_claims_36m,
+      :crm,
+      :formula,
+      :options,
+      :franchise_pref,
+      :effect_date,
+      :first_name,
+      :last_name,
+      :phone,
+      :email
+    ])
+  end
+
+  defp usage_options do
+    [
+      {gettext("Personal"), "personnel"},
+      {gettext("Commute"), "trajet_domicile_travail"},
+      {gettext("Professional"), "professionnel"},
+      {gettext("Taxi / VTC"), "taxi_vtc"}
+    ]
+  end
+
+  defp parking_options do
+    [
+      {gettext("Closed garage"), "garage"},
+      {gettext("Guarded parking"), "parking_surveille"},
+      {gettext("Street"), "rue"}
+    ]
+  end
+
+  defp fuel_options do
+    [
+      {gettext("Petrol"), "essence"},
+      {gettext("Diesel"), "diesel"},
+      {gettext("Hybrid"), "hybride"},
+      {gettext("Electric"), "electrique"}
+    ]
+  end
+
+  defp guarantee_options do
+    [
+      {gettext("Bris de glace"), "bris_glace"},
+      {gettext("Vol"), "vol"},
+      {gettext("Incendie"), "incendie"},
+      {gettext("PTA / Passagers"), "pta"},
+      {gettext("Défense & recours"), "defense_recours"},
+      {gettext("Assistance 0km"), "assistance"},
+      {gettext("Individuelle conducteur"), "individuelle"},
+      {gettext("Événements climatiques"), "evenements_climatiques"},
+      {gettext("EVCAT (mandatory)"), "evcat"}
+    ]
+  end
+
+  defp franchise_options do
+    [
+      {gettext("Low"), "basse"},
+      {gettext("Standard"), "standard"},
+      {gettext("High"), "elevee"}
+    ]
+  end
+
+  defp client_ip(socket) do
+    socket.private[:connect_info][:peer_data][:address]
+    |> case do
+      nil -> nil
+      addr -> addr |> :inet.ntoa() |> to_string()
+    end
+  end
+
+  defp otp_error_message(reason) do
+    case reason do
+      {:rate_limited, seconds} -> gettext("Too many attempts; wait %{s}s", s: seconds)
+      :disabled -> gettext("SMS is currently disabled")
+      :recipient_not_allowed -> gettext("Invalid Moroccan phone number")
+      _ -> gettext("Could not send code")
+    end
+  end
+
+  defp otp_verify_error_message(:invalid), do: gettext("Invalid code")
+  defp otp_verify_error_message(:expired), do: gettext("Code expired")
+  defp otp_verify_error_message(:locked), do: gettext("Too many failed attempts")
+  defp otp_verify_error_message(:phone_mismatch), do: gettext("Phone changed after code was sent")
+  defp otp_verify_error_message(_), do: gettext("Verification failed")
+
+  defp format_changeset_errors(changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {msg, opts} ->
+      Regex.replace(~r/%\{(\w+)\}/, msg, fn _, key ->
+        to_string(Keyword.get(opts, String.to_atom(key), "..."))
+      end)
+    end)
+    |> Enum.map_join(", ", fn {_field, errors} -> Enum.join(errors, ", ") end)
   end
 end
