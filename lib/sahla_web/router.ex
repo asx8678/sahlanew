@@ -55,12 +55,14 @@ defmodule SahlaWeb.Router do
       pipe_through :browser
 
       get "/", PageController, :home
+      get "/design-tokens", DesignTokenController, :index
     end
 
     scope "/ar", SahlaWeb, as: :ar do
       pipe_through :browser
 
       get "/", PageController, :home
+      get "/design-tokens", DesignTokenController, :index
     end
   end
 

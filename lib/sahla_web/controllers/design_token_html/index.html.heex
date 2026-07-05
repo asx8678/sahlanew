@@ -1,0 +1,103 @@
+<Layouts.flash_group flash={@flash} />
+
+<div class="min-h-screen bg-bg text-ink">
+  <main class="mx-auto max-w-4xl px-6 py-16">
+    <h1 class="text-3xl font-bold tracking-tight text-ink">
+      Sahla design tokens
+    </h1>
+    <p class="mt-4 text-lg text-ink/70">
+      Single source of truth for the brand palette, radius and shadow.
+    </p>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold text-ink">Palette</h2>
+      <div class="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-3">
+        <div class="overflow-hidden rounded-card shadow-soft bg-surface">
+          <div class="h-24 bg-primary"></div>
+          <div class="p-4">
+            <p class="font-semibold text-ink">Primary</p>
+            <p class="mt-1 font-mono text-sm text-ink/60">Majorelle</p>
+            <p class="mt-1 text-xs text-ink/50">bg-primary / --color-primary</p>
+          </div>
+        </div>
+
+        <div class="overflow-hidden rounded-card shadow-soft bg-surface">
+          <div class="h-24 bg-ink"></div>
+          <div class="p-4">
+            <p class="font-semibold text-ink">Ink</p>
+            <p class="mt-1 font-mono text-sm text-ink/60">--color-ink</p>
+            <p class="mt-1 text-xs text-ink/50">bg-ink / text-ink</p>
+          </div>
+        </div>
+
+        <div class="overflow-hidden rounded-card shadow-soft bg-surface">
+          <div class="h-24 bg-bg border border-ink/10"></div>
+          <div class="p-4">
+            <p class="font-semibold text-ink">Background</p>
+            <p class="mt-1 font-mono text-sm text-ink/60">warm sand</p>
+            <p class="mt-1 text-xs text-ink/50">bg-bg / --color-bg</p>
+          </div>
+        </div>
+
+        <div class="overflow-hidden rounded-card shadow-soft bg-surface">
+          <div class="h-24 bg-surface border border-ink/10"></div>
+          <div class="p-4">
+            <p class="font-semibold text-ink">Surface</p>
+            <p class="mt-1 font-mono text-sm text-ink/60">--color-surface</p>
+            <p class="mt-1 text-xs text-ink/50">bg-surface</p>
+          </div>
+        </div>
+
+        <div class="overflow-hidden rounded-card shadow-soft bg-surface">
+          <div class="h-24 bg-accent"></div>
+          <div class="p-4">
+            <p class="font-semibold text-ink">Accent</p>
+            <p class="mt-1 font-mono text-sm text-ink/60">Zellige teal</p>
+            <p class="mt-1 text-xs text-ink/50">bg-accent / --color-accent</p>
+          </div>
+        </div>
+
+        <div class="overflow-hidden rounded-card shadow-soft bg-surface">
+          <div class="h-24 bg-warm"></div>
+          <div class="p-4">
+            <p class="font-semibold text-ink">Warm</p>
+            <p class="mt-1 font-mono text-sm text-ink/60">terracotta</p>
+            <p class="mt-1 text-xs text-ink/50">bg-warm / --color-warm</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mt-16">
+      <h2 class="text-xl font-semibold text-ink">Radius & shadow</h2>
+      <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <div class="rounded-card border border-dashed border-ink/20 p-6 text-center bg-surface">
+          <p class="font-semibold text-ink">rounded-card</p>
+          <p class="mt-1 font-mono text-sm text-ink/60">14px</p>
+        </div>
+
+        <div class="rounded-card shadow-soft bg-surface p-6 text-center">
+          <p class="font-semibold text-ink">shadow-soft</p>
+          <p class="mt-1 font-mono text-sm text-ink/60">--shadow-soft</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="mt-16">
+      <h2 class="text-xl font-semibold text-ink">CSS custom properties</h2>
+      <p class="mt-2 text-ink/70">
+        The same values are emitted on :root as <code class="rounded bg-surface px-1 py-0.5 font-mono text-sm text-ink">--color-primary</code>, <code class="rounded bg-surface px-1 py-0.5 font-mono text-sm text-ink">--color-ink</code>, <code class="rounded bg-surface px-1 py-0.5 font-mono text-sm text-ink">--radius-card</code>, <code class="rounded bg-surface px-1 py-0.5 font-mono text-sm text-ink">--shadow-soft</code>, etc.
+      </p>
+    </section>
+
+    <section class="mt-16 rounded-card bg-surface p-6 shadow-soft">
+      <h2 class="text-xl font-semibold text-ink">RTL convention</h2>
+      <p class="mt-2 text-ink/70">
+        Use logical-property utilities only: <code class="rounded bg-bg px-1 py-0.5 font-mono text-sm text-ink">ms-</code>, <code class="rounded bg-bg px-1 py-0.5 font-mono text-sm text-ink">me-</code>, <code class="rounded bg-bg px-1 py-0.5 font-mono text-sm text-ink">ps-</code>, <code class="rounded bg-bg px-1 py-0.5 font-mono text-sm text-ink">pe-</code>, <code class="rounded bg-bg px-1 py-0.5 font-mono text-sm text-ink">text-start</code>, <code class="rounded bg-bg px-1 py-0.5 font-mono text-sm text-ink">text-end</code>.
+        Never use physical
+        <code class="rounded bg-bg px-1 py-0.5 font-mono text-sm text-ink">ml-/mr-/pl-/pr-</code>
+        utilities so Arabic layouts mirror automatically.
+      </p>
+    </section>
+  </main>
+</div>

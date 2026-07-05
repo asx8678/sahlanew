@@ -96,11 +96,12 @@ defmodule Sahla.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
-
-      # Test-only helpers.
       {:ex_machina, "~> 2.8", only: :test},
       {:mox, "~> 1.2", only: :test},
-      {:phoenix_test, "~> 0.7", only: :test, runtime: false}
+      {:phoenix_test, "~> 0.7", only: :test, runtime: false},
+
+      # CMS markdown → sanitized HTML (§7.4 shortlist; rao.1).
+      {:mdex, "~> 0.13"}
     ]
   end
 
