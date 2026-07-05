@@ -56,6 +56,30 @@ defmodule SahlaWeb.AdminAuth do
     renew_session(conn)
   end
 
+  @doc """
+  LiveView `on_mount` hook: restores `:current_admin` from the signed session
+  token so protected admin LiveViews have the admin available during the
+  WebSocket mount.
+  """
+  def on_mount(:fetch_current_admin, _params, session, socket) do
+    admin =
+      case session["admin_token"] do
+        token when is_binary(token) ->
+          with {:ok, {id, version}} <-
+                 Phoenix.Token.verify(SahlaWeb.Endpoint, @salt, token, max_age: @max_age),
+               %Sahla.Accounts.Admin{} = admin <- Accounts.get_admin_for_session(id, version) do
+            admin
+          else
+            _ -> nil
+          end
+
+        _ ->
+          nil
+      end
+
+    {:cont, Phoenix.Component.assign(socket, :current_admin, admin)}
+  end
+
   @doc "Assigns `:current_admin` from the session token (or `nil`)."
   def fetch_current_admin(conn, _opts) do
     assign(conn, :current_admin, admin_from_session(conn))

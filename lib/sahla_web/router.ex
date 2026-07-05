@@ -99,6 +99,20 @@ defmodule SahlaWeb.Router do
     get "/", DashboardController, :index
   end
 
+  # Protected admin LiveViews: a full (2FA-complete) session and the :leads
+  # capability are required. Live updates flow over the `leads` PubSub topic.
+  live_session :admin_leads,
+    on_mount: [
+      {SahlaWeb.AdminAuth, :fetch_current_admin},
+      {SahlaWeb.AdminAuthz, :leads}
+    ] do
+    scope "/admin", SahlaWeb.Admin, as: :admin do
+      pipe_through [:admin, :require_admin]
+
+      live "/leads/:id", LeadLive, :show
+    end
+  end
+
   scope "/webhooks", SahlaWeb.Webhooks, as: :webhook do
     pipe_through :webhook
     # Signature-verified provider callbacks land here later.
