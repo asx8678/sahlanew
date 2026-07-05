@@ -44,6 +44,8 @@ defmodule SahlaWeb do
 
       import Plug.Conn
 
+      plug :put_layout, html: {SahlaWeb.Layouts, :app}
+
       unquote(verified_routes())
     end
   end
