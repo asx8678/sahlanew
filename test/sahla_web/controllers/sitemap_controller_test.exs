@@ -1,8 +1,8 @@
 defmodule SahlaWeb.SitemapControllerTest do
   use SahlaWeb.ConnCase, async: true
 
-  alias Sahla.Content
   alias Sahla.Accounts
+  alias Sahla.Content
 
   defp post_fixture(attrs) do
     {:ok, admin} =

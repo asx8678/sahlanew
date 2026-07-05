@@ -4,18 +4,10 @@ defmodule SahlaWeb.Admin.DashboardHTML do
 
   def index(assigns) do
     ~H"""
-    <main class="admin-auth">
-      <section class="admin-auth__card">
-        <h1>{gettext("Admin")}</h1>
-        <p>{gettext("You are signed in.")}</p>
-
-        <form method="post" action={~p"/admin/logout"}>
-          <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
-          <input type="hidden" name="_method" value="delete" />
-          <button type="submit">{gettext("Sign out")}</button>
-        </form>
-      </section>
-    </main>
+    <div class="space-y-4">
+      <h1 class="text-2xl font-semibold text-ink">{gettext("Dashboard")}</h1>
+      <p class="text-ink/70">{gettext("You are signed in.")}</p>
+    </div>
     """
   end
 end

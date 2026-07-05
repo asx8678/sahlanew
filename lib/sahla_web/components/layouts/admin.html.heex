@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang={assigns[:locale] || "fr"} dir={assigns[:dir] || "ltr"}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.live_title default="Sahla" suffix=" · Admin">
+      {assigns[:page_title]}
+    </.live_title>
+    <link
+      rel="preload"
+      href="/fonts/plex/IBMPlexSans-Regular.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/plex/IBMPlexSansArabic-Regular.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <%= if head = assigns[:head] do %>
+      {render_slot(head)}
+    <% end %>
+    <.plausible_script domain={Application.get_env(:sahla, :plausible_domain)} />
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+    </script>
+    <script nonce={assigns[:csp_nonce]}>
+      (() => {
+        const setTheme = (theme) => {
+          if (theme === "system") {
+            localStorage.removeItem("phx:theme");
+            document.documentElement.removeAttribute("data-theme");
+          } else {
+            localStorage.setItem("phx:theme", theme);
+            document.documentElement.setAttribute("data-theme", theme);
+          }
+        };
+        if (!document.documentElement.hasAttribute("data-theme")) {
+          setTheme(localStorage.getItem("phx:theme") || "system");
+        }
+        window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
+
+        window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
+      })();
+    </script>
+  </head>
+  <body class="bg-bg text-ink antialiased">
+    <div class="flex min-h-screen">
+      <%!-- Sidebar --%>
+      <aside
+        class="sticky top-0 flex h-screen w-64 flex-col border-e border-ink/10 bg-surface shadow-soft"
+        aria-label={gettext("Admin navigation")}
+      >
+        <div class="flex items-center gap-2 px-4 py-4">
+          <.icon name="hero-shield-check" class="size-7 text-primary" />
+          <span class="font-semibold">{Sahla.Settings.display_name()}</span>
+          <span class="ms-auto rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+            {gettext("Admin")}
+          </span>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto px-3 py-2">
+          <ul class="space-y-1">
+            <li>
+              <.link
+                href={~p"/admin"}
+                class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-ink/80 hover:bg-base-200 hover:text-ink"
+              >
+                <.icon name="hero-squares-2x2" class="size-5 shrink-0" />
+                {gettext("Dashboard")}
+              </.link>
+            </li>
+            <li>
+              <.link
+                href="/admin/leads"
+                class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-ink/80 hover:bg-base-200 hover:text-ink"
+              >
+                <.icon name="hero-user-group" class="size-5 shrink-0" />
+                {gettext("Leads")}
+              </.link>
+            </li>
+            <li>
+              <.link
+                href="/admin/quotes"
+                class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-ink/80 hover:bg-base-200 hover:text-ink"
+              >
+                <.icon name="hero-document-text" class="size-5 shrink-0" />
+                {gettext("Quotes")}
+              </.link>
+            </li>
+            <li>
+              <.link
+                href="/admin/rating"
+                class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-ink/80 hover:bg-base-200 hover:text-ink"
+              >
+                <.icon name="hero-table-cells" class="size-5 shrink-0" />
+                {gettext("Rating studio")}
+              </.link>
+            </li>
+            <li>
+              <.link
+                href="/admin/directory"
+                class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-ink/80 hover:bg-base-200 hover:text-ink"
+              >
+                <.icon name="hero-building-library" class="size-5 shrink-0" />
+                {gettext("Directory")}
+              </.link>
+            </li>
+            <li>
+              <.link
+                href="/admin/content"
+                class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-ink/80 hover:bg-base-200 hover:text-ink"
+              >
+                <.icon name="hero-pencil-square" class="size-5 shrink-0" />
+                {gettext("Content")}
+              </.link>
+            </li>
+            <li>
+              <.link
+                href="/admin/notifications"
+                class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-ink/80 hover:bg-base-200 hover:text-ink"
+              >
+                <.icon name="hero-bell" class="size-5 shrink-0" />
+                {gettext("Notifications")}
+              </.link>
+            </li>
+            <li>
+              <.link
+                href="/admin/settings"
+                class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-ink/80 hover:bg-base-200 hover:text-ink"
+              >
+                <.icon name="hero-cog-6-tooth" class="size-5 shrink-0" />
+                {gettext("Settings")}
+              </.link>
+            </li>
+            <li>
+              <.link
+                href="/admin/audit"
+                class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-ink/80 hover:bg-base-200 hover:text-ink"
+              >
+                <.icon name="hero-shield-exclamation" class="size-5 shrink-0" />
+                {gettext("Audit")}
+              </.link>
+            </li>
+          </ul>
+        </nav>
+      </aside>
+
+      <%!-- Main area --%>
+      <div class="flex min-w-0 flex-1 flex-col">
+        <%!-- Topbar --%>
+        <header class="sticky top-0 z-20 flex items-center gap-4 border-b border-ink/10 bg-surface/95 px-6 py-3 backdrop-blur">
+          <.admin_breadcrumbs breadcrumbs={assigns[:breadcrumbs] || []} />
+
+          <div class="ms-auto flex items-center gap-4">
+            <div class="hidden text-sm sm:block">
+              <p class="font-medium text-ink">{@current_admin.email}</p>
+              <p class="text-xs text-ink/60">{admin_role_label(@current_admin)}</p>
+            </div>
+
+            <form method="post" action={~p"/admin/logout"} class="flex">
+              <input type="hidden" name="_csrf_token" value={get_csrf_token()} />
+              <input type="hidden" name="_method" value="delete" />
+              <button
+                type="submit"
+                class="btn btn-ghost btn-sm inline-flex items-center gap-2 text-ink/80 hover:text-error"
+              >
+                <.icon name="hero-arrow-right-start-on-rectangle" class="size-5" />
+                {gettext("Sign out")}
+              </button>
+            </form>
+          </div>
+        </header>
+
+        <%!-- Flash --%>
+        <div class="px-6 pt-4">
+          <.flash_group flash={@flash} />
+        </div>
+
+        <%!-- Content --%>
+        <main class="flex-1 px-6 py-4">
+          {@inner_content}
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

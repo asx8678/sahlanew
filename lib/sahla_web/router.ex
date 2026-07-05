@@ -80,6 +80,10 @@ defmodule SahlaWeb.Router do
     plug :require_authenticated_admin
   end
 
+  pipeline :admin_layout do
+    plug :put_root_layout, html: {SahlaWeb.Layouts, :admin}
+  end
+
   scope "/admin", SahlaWeb.Admin, as: :admin do
     pipe_through :admin
 
@@ -96,7 +100,7 @@ defmodule SahlaWeb.Router do
 
   # Protected admin surfaces: a full (2FA-complete) session is mandatory.
   scope "/admin", SahlaWeb.Admin, as: :admin do
-    pipe_through [:admin, :require_admin]
+    pipe_through [:admin, :require_admin, :admin_layout]
 
     get "/", DashboardController, :index
   end
@@ -109,7 +113,7 @@ defmodule SahlaWeb.Router do
       {SahlaWeb.AdminAuthz, :leads}
     ] do
     scope "/admin", SahlaWeb.Admin, as: :admin do
-      pipe_through [:admin, :require_admin]
+      pipe_through [:admin, :require_admin, :admin_layout]
 
       live "/leads/:id", LeadLive, :show
     end

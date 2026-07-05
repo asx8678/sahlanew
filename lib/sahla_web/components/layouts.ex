@@ -5,6 +5,8 @@ defmodule SahlaWeb.Layouts do
   """
   use SahlaWeb, :html
 
+  import SahlaWeb.SEO
+
   # Embed all files in layouts/* within this module.
   # The default root.html.heex file contains the HTML
   # skeleton of your application, namely HTML headers
@@ -326,6 +328,51 @@ defmodule SahlaWeb.Layouts do
 
   See <head> in root.html.heex which applies the theme before page load.
   """
+  attr :breadcrumbs, :list, default: []
+
+  def admin_breadcrumbs(assigns) do
+    ~H"""
+    <nav aria-label={gettext("Breadcrumb")}>
+      <ol class="flex flex-wrap items-center gap-1 text-sm text-ink/60">
+        <%= for {{label, path}, idx} <- Enum.with_index(@breadcrumbs) do %>
+          <li class="flex items-center gap-1">
+            <%= if idx > 0 do %>
+              <.icon name="hero-chevron-right" class="size-4 shrink-0" />
+            <% end %>
+            <%= if idx == length(@breadcrumbs) - 1 and not is_nil(path) do %>
+              <.link
+                href={path}
+                class="font-medium text-ink hover:underline"
+                aria-current="page"
+              >
+                {label}
+              </.link>
+            <% else %>
+              <%= if is_nil(path) do %>
+                <span class="font-medium text-ink">{label}</span>
+              <% else %>
+                <.link href={path} class="hover:text-ink hover:underline">
+                  {label}
+                </.link>
+              <% end %>
+            <% end %>
+          </li>
+        <% end %>
+      </ol>
+    </nav>
+    """
+  end
+
+  def admin_role_label(admin) do
+    role = admin && admin.role
+
+    if role do
+      Gettext.gettext(Sahla.Gettext, "Admin role: %{role}", role: role)
+    else
+      Gettext.gettext(Sahla.Gettext, "No role")
+    end
+  end
+
   def theme_toggle(assigns) do
     ~H"""
     <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">

@@ -7,6 +7,6 @@ defmodule SahlaWeb.Admin.DashboardController do
   use SahlaWeb, :controller
 
   def index(conn, _params) do
-    render(conn, :index)
+    render(conn, :index, breadcrumbs: [{gettext("Dashboard"), ~p"/admin"}])
   end
 end

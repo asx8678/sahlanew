@@ -17,7 +17,7 @@ defmodule SahlaWeb.LayoutsTest do
     conn = get(conn, ~p"/")
     html = html_response(conn, 200)
 
-    assert html =~ "Sahla"
+    assert html =~ Sahla.Settings.display_name()
     assert html =~ ~S(<footer)
     assert html =~ ~S(<header)
     assert html =~ ~S(<main)
@@ -66,5 +66,68 @@ defmodule SahlaWeb.LayoutsTest do
     assert html =~ "plausible.io/js/script.manual.outbound-links.js"
     # The script must live inside <head>, before the app.js script.
     assert html =~ ~r/<head>.*plausible\.io.*<script defer phx-track-static/ms
+  end
+
+  describe "admin layout" do
+    setup %{conn: conn} do
+      {:ok, admin} =
+        Sahla.Accounts.register_admin(%{
+          email: "layout-admin-#{System.unique_integer([:positive])}@sahla.ma",
+          password: "correct horse battery staple",
+          role: :ops
+        })
+
+      conn =
+        conn
+        |> Plug.Test.init_test_session(%{})
+        |> SahlaWeb.AdminAuth.log_in_admin(admin)
+        |> SahlaWeb.AdminAuth.fetch_current_admin([])
+
+      %{conn: conn, admin: admin}
+    end
+
+    test "authenticated /admin renders the admin shell", %{conn: conn, admin: admin} do
+      conn = get(conn, ~p"/admin")
+      html = html_response(conn, 200)
+
+      assert html =~ ~S(<aside)
+      assert html =~ "Dashboard"
+      assert html =~ "Leads"
+      assert html =~ "Quotes"
+      assert html =~ "Rating studio"
+      assert html =~ "Directory"
+      assert html =~ "Content"
+      assert html =~ "Notifications"
+      assert html =~ "Settings"
+      assert html =~ "Audit"
+
+      assert html =~ admin.email
+      assert html =~ to_string(admin.role)
+      assert html =~ ~S(<form method="post" action="/admin/logout")
+      assert html =~ ~S(<button type="submit")
+      assert html =~ ~S(<nav aria-label="Breadcrumb">)
+    end
+
+    test "admin login page does not use the admin chrome layout", %{conn: conn} do
+      conn = get(conn, ~p"/admin/login")
+      html = html_response(conn, 200)
+
+      refute html =~ ~S(<aside)
+      refute html =~ "Sign out"
+      assert html =~ "Admin sign in"
+    end
+
+    test "admin layout renders flash messages", %{conn: conn} do
+      conn =
+        conn
+        |> Phoenix.Controller.fetch_flash(%{})
+        |> Phoenix.Controller.put_flash(:info, "Welcome back")
+
+      conn = get(conn, ~p"/admin")
+      html = html_response(conn, 200)
+
+      assert html =~ "Welcome back"
+      assert html =~ ~S(<div id="flash-group")
+    end
   end
 end

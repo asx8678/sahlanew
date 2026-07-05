@@ -13,3 +13,7 @@
 # Runtime settings: feature flags (default OFF), display name, disclaimers.
 # Idempotent — never clobbers a value ops has already changed.
 Sahla.Settings.seed_defaults()
+
+# Placeholder rate tables and minimal catalog for the rating engine.
+# Idempotent — leaves exactly one published version per table code.
+Sahla.Rating.Seeds.seed_placeholders()

@@ -11,6 +11,7 @@ defmodule SahlaWeb.Admin.LeadLive do
 
   on_mount {SahlaWeb.AdminAuthz, :leads}
 
+  alias Sahla.Encrypted.Binary
   alias Sahla.Leads
   alias Sahla.Leads.Lead
   alias Sahla.Quoting.Quote
@@ -621,7 +622,7 @@ defmodule SahlaWeb.Admin.LeadLive do
   defp decrypted_phone(%Quote{phone_enc: nil}), do: nil
 
   defp decrypted_phone(%Quote{} = quote_record) do
-    case Sahla.Encrypted.Binary.load(quote_record.phone_enc) do
+    case Binary.load(quote_record.phone_enc) do
       {:ok, phone} -> phone
       _ -> nil
     end
