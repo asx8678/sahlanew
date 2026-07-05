@@ -44,6 +44,8 @@ defmodule SahlaWeb.Router do
   # uptime monitors and the deploy rollback gate.
   scope "/", SahlaWeb do
     get "/health", HealthController, :index
+    get "/sitemap.xml", SitemapController, :sitemap
+    get "/robots.txt", SitemapController, :robots
   end
 
   # Public routes are mirrored under `/` (French) and `/ar` (Arabic) so every page
