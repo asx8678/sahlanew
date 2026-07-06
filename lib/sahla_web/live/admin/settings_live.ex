@@ -28,7 +28,8 @@ defmodule SahlaWeb.Admin.SettingsLive do
     "feature.sms",
     "feature.whatsapp",
     "feature.payments",
-    "feature.ip_allowlist"
+    "feature.ip_allowlist",
+    "feature.turnstile"
   ]
   @display ["display.vat_inclusive"]
   @disclaimers ["disclaimer_fr", "disclaimer_ar"]
@@ -143,6 +144,7 @@ defmodule SahlaWeb.Admin.SettingsLive do
     |> write_flag("feature.whatsapp", values["feature.whatsapp"])
     |> write_flag("feature.payments", values["feature.payments"])
     |> write_flag("feature.ip_allowlist", values["feature.ip_allowlist"])
+    |> write_flag("feature.turnstile", values["feature.turnstile"])
     |> ok()
   end
 
@@ -640,6 +642,7 @@ defmodule SahlaWeb.Admin.SettingsLive do
   defp feature_label("feature.whatsapp"), do: gettext("WhatsApp integration")
   defp feature_label("feature.payments"), do: gettext("Payments")
   defp feature_label("feature.ip_allowlist"), do: gettext("Admin IP allowlist")
+  defp feature_label("feature.turnstile"), do: gettext("Anti-bot (Turnstile)")
 
   defp format_time(%Time{} = time), do: Time.to_string(time) |> String.slice(0, 5)
 

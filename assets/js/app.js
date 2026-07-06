@@ -67,6 +67,51 @@ const Hooks = {
         this.pushEventTo(this.el, "verify_otp", {code})
       }
     }
+  },
+
+  // Cloudflare Turnstile: render the widget into the hooked div and push the
+  // verification token to the server on success. The site key is read from the
+  // element's data-sitekey attribute (rendered from runtime config).
+  Turnstile: {
+    mounted() {
+      this.render()
+    },
+
+    destroyed() {
+      if (this._widgetId) {
+        try { window.turnstile?.remove(this._widgetId) } catch (_) {}
+        this._widgetId = null
+      }
+    },
+
+    render() {
+      const siteKey = this.el.dataset.sitekey
+      if (!siteKey) return
+
+      const renderWidget = () => {
+        if (typeof window.turnstile !== "object" || !window.turnstile.render) return false
+        this._widgetId = window.turnstile.render(this.el, {
+          sitekey: siteKey,
+          callback: (token) => this.pushEvent("set_turnstile_token", {token})
+        })
+        return true
+      }
+
+      if (renderWidget()) return
+
+      // Cloudflare's explicit script; loaded once per page.
+      if (!document.getElementById("cf-turnstile-script")) {
+        const script = document.createElement("script")
+        script.id = "cf-turnstile-script"
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+        script.async = true
+        script.defer = true
+        document.head.appendChild(script)
+      }
+
+      const tryRender = () => renderWidget() || (this._timer = setTimeout(tryRender, 200))
+      tryRender()
+    }
   }
 }
 

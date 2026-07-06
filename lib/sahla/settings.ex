@@ -64,6 +64,7 @@ defmodule Sahla.Settings do
       "feature.sms" => false,
       "feature.whatsapp" => false,
       "feature.payments" => false,
+      "feature.turnstile" => false,
       "display_name" => Application.get_env(:sahla, :brand_name, "Sahla"),
       "disclaimer_fr" => "Devis indicatif et sans valeur contractuelle.",
       "disclaimer_ar" => "عرض تقديري وليس له قيمة تعاقدية."

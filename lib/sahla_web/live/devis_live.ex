@@ -14,6 +14,7 @@ defmodule SahlaWeb.DevisLive do
   use SahlaWeb, :live_view
 
   alias Sahla.Accounts.OTP
+  alias Sahla.AntiBot
   alias Sahla.Cities
   alias Sahla.Compliance
   alias Sahla.Directory
@@ -41,6 +42,7 @@ defmodule SahlaWeb.DevisLive do
           |> assign(:current_step, nil)
           |> assign(:step, nil)
           |> assign(:changeset, nil)
+          |> assign(:turnstile_token, nil)
 
         {:ok, quote} ->
           step = step_atom(quote.current_step)
@@ -52,6 +54,7 @@ defmodule SahlaWeb.DevisLive do
           |> assign(:current_step, quote.current_step)
           |> assign(:step, step)
           |> assign(:changeset, nil)
+          |> assign(:turnstile_token, nil)
           |> reset_otp_state()
           |> allow_uploads()
       end
@@ -106,22 +109,32 @@ defmodule SahlaWeb.DevisLive do
   def handle_event("continue", _params, socket) do
     current = socket.assigns.current_step
 
-    if current < @step_count do
-      next_step = current + 1
-      {:ok, quote} = update_step(socket.assigns.quote, next_step)
+    cond do
+      current == 1 and not anti_bot_passes?(socket) ->
+        {:noreply, anti_bot_blocked(socket)}
 
-      socket =
-        socket
-        |> assign(:current_step, next_step)
-        |> assign(:step, step_atom(next_step))
-        |> assign(:quote, quote)
-        |> assign(:changeset, nil)
-        |> maybe_allow_uploads(step_atom(next_step))
+      current < @step_count ->
+        next_step = current + 1
+        {:ok, quote} = update_step(socket.assigns.quote, next_step)
 
-      {:noreply, socket}
-    else
-      complete_and_redirect(socket)
+        socket =
+          socket
+          |> assign(:current_step, next_step)
+          |> assign(:step, step_atom(next_step))
+          |> assign(:quote, quote)
+          |> assign(:changeset, nil)
+          |> assign(:turnstile_token, nil)
+          |> maybe_allow_uploads(step_atom(next_step))
+
+        {:noreply, socket}
+
+      true ->
+        complete_and_redirect(socket)
     end
+  end
+
+  def handle_event("set_turnstile_token", %{"token" => token}, socket) do
+    {:noreply, assign(socket, :turnstile_token, token)}
   end
 
   def handle_event("back", _params, socket) do
@@ -452,10 +465,18 @@ defmodule SahlaWeb.DevisLive do
       |> assign(:vehicle, vehicle_defaults(quote))
       |> assign(:errors, step_errors(assigns.changeset))
       |> assign(:value_required, quote.formula in Enums.valued_formulas())
+      |> assign(:turnstile_enabled, turnstile_enabled?())
+      |> assign(:turnstile_site_key, turnstile_site_key())
 
     ~H"""
     <form phx-change="autosave" class="space-y-5" id="vehicle-form">
       <h2 class="text-xl font-semibold text-ink">{gettext("Your vehicle")}</h2>
+
+      <.turnstile_widget
+        :if={@turnstile_enabled and @turnstile_site_key}
+        site_key={@turnstile_site_key}
+        token={Map.get(assigns, :turnstile_token)}
+      />
 
       <.input type="hidden" name="step[is_new_ww]" value={to_string(@vehicle[:is_new_ww])} />
 
@@ -1100,6 +1121,35 @@ defmodule SahlaWeb.DevisLive do
     """
   end
 
+  attr :site_key, :string, required: true
+  attr :token, :any, default: nil
+
+  defp turnstile_widget(assigns) do
+    assigns = assign(assigns, :verified, is_binary(assigns.token) and assigns.token != "")
+
+    ~H"""
+    <div class="space-y-2 rounded-card border border-ink/10 bg-surface p-4">
+      <div class="flex items-center justify-between">
+        <span class="text-sm font-medium text-ink">
+          {gettext("Security check")}
+        </span>
+        <span :if={@verified} class="text-sm text-success">{gettext("Verified")}</span>
+      </div>
+      <div
+        id="turnstile-widget"
+        phx-hook="Turnstile"
+        data-sitekey={@site_key}
+        data-token-target="turnstile-token"
+      >
+      </div>
+      <input type="hidden" id="turnstile-token" name="turnstile_token" value={@token || ""} />
+      <p class="text-xs text-ink/60">
+        {gettext("Complete the challenge to continue.")}
+      </p>
+    </div>
+    """
+  end
+
   # --- Helpers ---------------------------------------------------------------
 
   defp vehicle_defaults(quote) do
@@ -1357,6 +1407,25 @@ defmodule SahlaWeb.DevisLive do
          |> assign(:changeset, nil)}
     end
   end
+
+  # --- Step 1 anti-bot gate ---------------------------------------------------
+
+  defp anti_bot_passes?(socket) do
+    case AntiBot.verify(socket.assigns[:turnstile_token]) do
+      {:ok, _} -> true
+      {:error, _} -> false
+    end
+  end
+
+  defp anti_bot_blocked(socket) do
+    socket
+    |> put_flash(:error, gettext("Please complete the security check to continue."))
+    |> assign(:turnstile_token, nil)
+  end
+
+  defp turnstile_enabled?, do: Sahla.Settings.feature_enabled?(:turnstile)
+
+  defp turnstile_site_key, do: AntiBot.site_key()
 
   defp can_continue?(:vehicle, quote, _changeset) do
     step = Quoting.validate_step(quote, :vehicle, Map.from_struct(quote) |> step_params())

@@ -21,6 +21,9 @@ defmodule Sahla.Application do
       # Records SMS sends for the Fake adapter (dev/test); inert in prod when a
       # live provider is configured.
       Sahla.Notifications.SMSProvider.Fake,
+      # Records Turnstile verifications for the Fake anti-bot adapter (dev/test);
+      # inert in prod when a live Turnstile secret is configured.
+      Sahla.AntiBot.Fake,
       # ETS-backed rate-limit buckets (anti-abuse/anti-pump).
       {Sahla.Notifications.RateLimit, clean_period: :timer.minutes(10)},
       # Background jobs (§7.3). Inline in test (see config/test.exs) so runs are

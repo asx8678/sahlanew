@@ -42,6 +42,7 @@ defmodule SahlaWeb.DevisLiveTest do
       |> Sahla.Repo.insert!()
 
     Sahla.Notifications.SMSProvider.Fake.clear()
+    Sahla.AntiBot.Fake.clear()
     Application.put_env(:sahla, :sms_enabled, true)
     %{conn: conn, city: city, make: make, model: model, version: version}
   end
