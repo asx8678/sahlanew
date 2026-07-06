@@ -24,6 +24,12 @@ defmodule SahlaWeb.Plugs.Locale do
   @doc "The default locale."
   def default, do: @default
 
+  @doc "The cookie key the plug persists the locale under (and the switcher writes)."
+  def cookie_key, do: @cookie
+
+  @doc "The locale cookie max age, in seconds (one year)."
+  def cookie_max_age, do: @cookie_max_age
+
   @doc "Text direction for a locale: rtl for Arabic, ltr otherwise."
   def dir("ar"), do: "rtl"
   def dir(_locale), do: "ltr"

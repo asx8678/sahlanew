@@ -234,6 +234,38 @@ defmodule SahlaWeb.Layouts do
   defp home_path("ar"), do: ~p"/ar"
   defp home_path(_locale), do: ~p"/"
 
+  @doc """
+  Language switcher (§6.3). Renders a link that sets the `locale` cookie and
+  redirects to the mirror of `current_path` in the other locale — funnel and
+  offers tokens (and insurer/guide slugs) survive the switch. The target
+  language is labelled natively (العربية on French, Français on Arabic).
+  """
+  attr :locale, :string, required: true, doc: "the current locale code"
+
+  attr :current_path, :string,
+    required: true,
+    doc: "the current request path (with optional query)"
+
+  def language_switcher(assigns) do
+    ~H"""
+    <.link
+      href={~p"/locale/#{other(@locale)}?#{[redirect: @current_path]}"}
+      lang={other(@locale)}
+      dir={SahlaWeb.Plugs.Locale.dir(other(@locale))}
+      aria-label={gettext("Switch language")}
+    >
+      {native_label(other(@locale))}
+    </.link>
+    """
+  end
+
+  defp other("ar"), do: "fr"
+  defp other(_locale), do: "ar"
+
+  defp native_label("ar"), do: "العربية"
+  defp native_label("fr"), do: "Français"
+  defp native_label(_locale), do: "Français"
+
   defp page_path("ar", path), do: "/ar" <> path
   defp page_path(_locale, path), do: path
 

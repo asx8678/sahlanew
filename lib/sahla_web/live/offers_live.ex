@@ -44,9 +44,29 @@ defmodule SahlaWeb.OffersLive do
   end
 
   @impl true
+  def handle_params(_params, uri, socket) do
+    {:noreply, assign(socket, :current_path, path_from_uri(uri))}
+  end
+
+  defp path_from_uri(uri) do
+    uri = URI.parse(uri)
+    path = uri.path || "/"
+
+    case uri.query do
+      nil -> path
+      "" -> path
+      query -> "#{path}?#{query}"
+    end
+  end
+
+  @impl true
   def render(assigns) do
     ~H"""
     <div class="min-h-[60vh]">
+      <div class="fixed end-4 top-4 z-50">
+        <Layouts.language_switcher locale={@locale} current_path={@current_path} />
+      </div>
+
       <%= if @error do %>
         <section class="py-16 text-center">
           <h1 class="text-2xl font-bold text-ink">{gettext("Offers unavailable")}</h1>

@@ -43,6 +43,15 @@ defmodule SahlaWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # Locale switch endpoint (§6.3): reachable from any locale scope without
+  # being mirrored itself — it sets the `locale` cookie and redirects to the
+  # caller's path mirrored in the target locale (token preserved).
+  scope "/", SahlaWeb do
+    pipe_through :browser
+
+    get "/locale/:locale", LocaleController, :switch
+  end
+
   # Health probe: no session/CSRF so it stays cheap and always reachable for
   # uptime monitors and the deploy rollback gate.
   scope "/", SahlaWeb do

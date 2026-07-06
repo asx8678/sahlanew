@@ -28,31 +28,41 @@ defmodule SahlaWeb.InsurersLive do
   def handle_params(params, uri, socket) do
     locale = socket.assigns.locale
     path = URI.parse(uri).path || "/assureurs"
+    current_path = current_path_from(uri)
 
     socket =
-      case socket.assigns.live_action do
-        :index ->
-          insurers = Directory.list_active_insurers()
-          assign_index(socket, insurers, path, locale)
-
-        :show ->
-          slug = Map.fetch!(params, "slug")
-
-          case Directory.get_active_insurer_by_slug(slug) do
-            nil ->
-              socket
-              |> put_flash(:error, gettext("Insurer not found"))
-              |> redirect(to: index_path(locale))
-
-            insurer ->
-              products = Directory.list_public_products_for_insurer(insurer.id)
-              guarantees = Directory.list_guarantees()
-              related = related_guides(locale)
-              assign_show(socket, insurer, products, guarantees, related, path, locale)
-          end
-      end
+      socket
+      |> assign(:current_path, current_path)
+      |> handle_live_action(params, path, locale)
 
     {:noreply, socket}
+  end
+
+  defp handle_live_action(socket, params, path, locale) do
+    case socket.assigns.live_action do
+      :index ->
+        insurers = Directory.list_active_insurers()
+        assign_index(socket, insurers, path, locale)
+
+      :show ->
+        slug = Map.fetch!(params, "slug")
+        load_show(socket, slug, path, locale)
+    end
+  end
+
+  defp load_show(socket, slug, path, locale) do
+    case Directory.get_active_insurer_by_slug(slug) do
+      nil ->
+        socket
+        |> put_flash(:error, gettext("Insurer not found"))
+        |> redirect(to: index_path(locale))
+
+      insurer ->
+        products = Directory.list_public_products_for_insurer(insurer.id)
+        guarantees = Directory.list_guarantees()
+        related = related_guides(locale)
+        assign_show(socket, insurer, products, guarantees, related, path, locale)
+    end
   end
 
   defp assign_index(socket, insurers, path, locale) do
@@ -87,7 +97,11 @@ defmodule SahlaWeb.InsurersLive do
   def render(assigns) do
     ~H"""
     <div class="bg-surface">
-      <Layouts.topbar locale={@locale} dir={@dir} />
+      <Layouts.topbar locale={@locale} dir={@dir}>
+        <:language_switcher>
+          <Layouts.language_switcher locale={@locale} current_path={@current_path} />
+        </:language_switcher>
+      </Layouts.topbar>
 
       <%= if @live_action == :index do %>
         <.index insurers={@insurers} locale={@locale} />
@@ -441,6 +455,17 @@ defmodule SahlaWeb.InsurersLive do
 
   defp index_path("ar"), do: "/ar/assureurs"
   defp index_path(_locale), do: "/assureurs"
+
+  defp current_path_from(uri) do
+    uri = URI.parse(uri)
+    path = uri.path || "/"
+
+    case uri.query do
+      nil -> path
+      "" -> path
+      query -> "#{path}?#{query}"
+    end
+  end
 
   defp index_breadcrumb_schema(locale) do
     SEO.breadcrumb_schema([

@@ -27,6 +27,25 @@ defmodule SahlaWeb.HomeLive do
   end
 
   @impl true
+  def handle_params(_params, uri, socket) do
+    {:noreply, assign(socket, :current_path, path_from_uri(uri))}
+  end
+
+  defp path_from_uri(uri) do
+    case URI.parse(uri) do
+      %URI{path: path, query: query} when is_binary(path) ->
+        case query do
+          nil -> path
+          "" -> path
+          q -> path <> "?" <> q
+        end
+
+      _ ->
+        "/"
+    end
+  end
+
+  @impl true
   def handle_event("plate_change", %{"plate" => plate}, socket) do
     {:noreply, assign(socket, plate: normalize_plate(plate), plate_error: nil)}
   end
@@ -107,7 +126,11 @@ defmodule SahlaWeb.HomeLive do
   def render(assigns) do
     ~H"""
     <div class="bg-surface">
-      <Layouts.topbar locale={@locale} dir={@dir} />
+      <Layouts.topbar locale={@locale} dir={@dir}>
+        <:language_switcher>
+          <Layouts.language_switcher locale={@locale} current_path={@current_path} />
+        </:language_switcher>
+      </Layouts.topbar>
 
       <section class="relative overflow-hidden border-b border-ink/10 px-4 py-16 sm:px-6 lg:px-8">
         <svg class="absolute inset-0 -z-10 h-full w-full opacity-5" aria-hidden="true">
