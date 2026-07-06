@@ -15,7 +15,7 @@ defmodule Sahla.Quoting.Quote do
   alias Sahla.Quoting.Enums
 
   # User-editable answers the autosave changeset may cast. Excludes token,
-  # status, phone_verified_at, rating_run_id and the derived phone columns.
+  # status, phone_verified_at, rating_run_id and the derived phone/releve columns.
   @castable [
     :locale,
     :current_step,
@@ -39,6 +39,7 @@ defmodule Sahla.Quoting.Quote do
     :at_fault_claims_36m,
     :crm,
     :releve_doc_path,
+    :releve_doc_meta,
     :formula,
     :options,
     :franchise_pref,
@@ -81,6 +82,8 @@ defmodule Sahla.Quoting.Quote do
     field :at_fault_claims_36m, :integer
     field :crm, :decimal
     field :releve_doc_path, :string
+    field :releve_doc_meta, :map, virtual: true, redact: true
+    field :releve_doc_meta_enc, Sahla.Encrypted.Map, redact: true
 
     # Coverage
     field :formula, Ecto.Enum, values: Enums.formulas()
@@ -134,6 +137,7 @@ defmodule Sahla.Quoting.Quote do
     )
     |> validate_length(:options, max: 20)
     |> put_phone()
+    |> put_releve_doc_meta()
     |> assoc_checks()
   end
 
@@ -155,6 +159,16 @@ defmodule Sahla.Quoting.Quote do
         |> put_change(:phone_enc, phone)
         |> put_change(:phone_hash, phone)
         |> reset_verification_if_phone_changed(phone)
+    end
+  end
+
+  defp put_releve_doc_meta(changeset) do
+    case get_change(changeset, :releve_doc_meta) do
+      nil ->
+        changeset
+
+      meta when is_map(meta) ->
+        put_change(changeset, :releve_doc_meta_enc, meta)
     end
   end
 

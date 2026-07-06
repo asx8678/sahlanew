@@ -345,6 +345,80 @@ defmodule SahlaWeb.DevisLiveTest do
     assert not is_nil(reloaded.phone_verified_at)
   end
 
+  test "step 2 CRM 'I do not know' stores null and still allows continue", %{conn: conn} do
+    {:ok, quote} = Quoting.create_quote(%{locale: "fr", current_step: 2})
+
+    {:ok, lv, _html} = live(conn, ~p"/devis/#{quote.token}")
+
+    lv
+    |> element("#driver-form")
+    |> render_change(%{
+      step: %{
+        birth_date: "1990-01-01",
+        license_date: "2010-01-01",
+        is_public_servant: "false",
+        at_fault_claims_36m: "0",
+        crm: ""
+      }
+    })
+
+    reloaded = Quoting.get_quote_by_token(quote.token)
+    assert reloaded.birth_date == ~D[1990-01-01]
+    assert reloaded.license_date == ~D[2010-01-01]
+    assert reloaded.is_public_servant == false
+    assert reloaded.at_fault_claims_36m == 0
+    assert is_nil(reloaded.crm)
+
+    lv |> element("button[phx-click='continue']") |> render_click()
+
+    assert Quoting.get_quote_by_token(quote.token).current_step == 3
+  end
+
+  test "step 2 relevé upload stores private path and encrypted metadata", %{conn: conn} do
+    dir =
+      Path.join(System.tmp_dir!(), "sahla_devis_upload_test_#{System.unique_integer([:positive])}")
+
+    Application.put_env(:sahla, :uploads_dir, dir)
+    on_exit(fn -> File.rm_rf(dir) end)
+
+    {:ok, quote} = Quoting.create_quote(%{locale: "fr", current_step: 2})
+
+    {:ok, lv, _html} = live(conn, ~p"/devis/#{quote.token}")
+
+    # Fill required driver fields first so the step is valid.
+    lv
+    |> element("#driver-form")
+    |> render_change(%{
+      step: %{
+        birth_date: "1990-01-01",
+        license_date: "2010-01-01",
+        is_public_servant: "false",
+        at_fault_claims_36m: "0"
+      }
+    })
+
+    pdf = <<0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34, 0x0A>>
+    lv
+    |> file_input("#driver-form", :releve_doc, [%{
+      name: "releve.pdf",
+      content: pdf
+    }])
+    |> render_upload("releve.pdf")
+
+    lv
+    |> element("#driver-form")
+    |> render_submit(%{})
+
+    reloaded = Quoting.get_quote_by_token(quote.token)
+    assert is_binary(reloaded.releve_doc_path)
+
+    assert %{
+             "content_type" => "application/pdf",
+             "original_name" => "releve.pdf",
+             "size" => 9
+           } = reloaded.releve_doc_meta_enc
+  end
+
   defp last_sent_code(phone) do
     messages =
       Sahla.Notifications.SMSProvider.Fake.sent()

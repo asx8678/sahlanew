@@ -39,6 +39,11 @@ defmodule Sahla.Quoting.Steps.Driver do
   def changeset(driver, attrs, opts \\ []) do
     today = Keyword.get(opts, :today, Date.utc_today())
 
+    attrs =
+      attrs
+      |> Map.new(fn {key, value} -> {to_string(key), value} end)
+      |> maybe_nil_empty(["current_insurer_id", "crm"])
+
     driver
     |> cast(attrs, @required ++ @optional)
     |> validate_required(@required)
@@ -50,5 +55,14 @@ defmodule Sahla.Quoting.Steps.Driver do
       greater_than_or_equal_to: Decimal.new("0.50"),
       less_than_or_equal_to: Decimal.new("2.50")
     )
+  end
+
+  defp maybe_nil_empty(attrs, keys) do
+    Enum.reduce(keys, attrs, fn key, acc ->
+      case Map.get(acc, key) do
+        "" -> Map.put(acc, key, nil)
+        _ -> acc
+      end
+    end)
   end
 end

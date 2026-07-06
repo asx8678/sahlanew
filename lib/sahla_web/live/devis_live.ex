@@ -16,8 +16,10 @@ defmodule SahlaWeb.DevisLive do
   alias Sahla.Accounts.OTP
   alias Sahla.Cities
   alias Sahla.Compliance
+  alias Sahla.Directory
   alias Sahla.Quoting
   alias Sahla.Quoting.Enums
+  alias Sahla.Uploads
   alias Sahla.Vehicles
   alias Sahla.Vehicles.Catalog
 
@@ -53,6 +55,7 @@ defmodule SahlaWeb.DevisLive do
           |> assign(:step, step)
           |> assign(:changeset, nil)
           |> reset_otp_state()
+          |> allow_uploads()
       end
 
     {:ok, socket}
@@ -203,6 +206,54 @@ defmodule SahlaWeb.DevisLive do
      |> push_event("autofill-version", %{name: name, power: to_string(power)})}
   end
 
+  # --- Step 2: driver / relevé upload ----------------------------------------
+
+  def handle_event("upload_releve", _params, socket) do
+    quote = socket.assigns.quote
+
+    results =
+      consume_uploaded_entries(socket, :releve_doc, fn %{path: path}, entry ->
+        Uploads.store(%Plug.Upload{path: path, filename: entry.client_name})
+      end)
+
+    case results do
+      [%Uploads{} = upload] ->
+        attrs = %{
+          "releve_doc_path" => Path.basename(upload.path),
+          "releve_doc_meta" => %{
+            "original_name" => upload.original_name,
+            "content_type" => upload.content_type,
+            "size" => upload.size,
+            "stored_at" => DateTime.utc_now() |> DateTime.to_iso8601()
+          }
+        }
+
+        case Quoting.upsert_step(quote, :driver, attrs) do
+          {:ok, quote} ->
+            {:noreply,
+             socket
+             |> assign(:quote, quote)
+             |> assign(:changeset, nil)}
+
+          {:error, changeset} ->
+            {:noreply, assign(socket, :changeset, changeset)}
+        end
+
+      [{:error, reason}] ->
+        {:noreply,
+         socket
+         |> put_flash(:error, upload_error_message(reason))
+         |> assign(:changeset, nil)}
+
+      [] ->
+        {:noreply, put_flash(socket, :error, gettext("No file selected"))}
+    end
+  end
+
+  def handle_event("cancel-upload", %{"ref" => ref}, socket) do
+    {:noreply, cancel_upload(socket, :releve_doc, ref)}
+  end
+
   # --- Step 4: OTP -----------------------------------------------------------
 
   def handle_event("request_otp", _params, socket) do
@@ -312,6 +363,7 @@ defmodule SahlaWeb.DevisLive do
               otp_error={Map.get(assigns, :otp_error)}
               otp_requested_at={Map.get(assigns, :otp_requested_at)}
               consent_error={Map.get(assigns, :consent_error)}
+              uploads={@uploads}
             />
           </.card>
 
@@ -383,6 +435,7 @@ defmodule SahlaWeb.DevisLive do
   attr :otp_error, :any, default: nil
   attr :otp_requested_at, :any, default: nil
   attr :consent_error, :any, default: nil
+  attr :uploads, :any, required: true
 
   defp step_form(%{step: :vehicle} = assigns) do
     quote = assigns.quote
@@ -661,18 +714,164 @@ defmodule SahlaWeb.DevisLive do
   end
 
   defp step_form(%{step: :driver} = assigns) do
+    quote = assigns.quote
+    errors = step_errors(assigns.changeset)
+    driver = driver_defaults(quote)
+    insurers = Directory.list_active_insurers()
+    crm_known = not is_nil(driver[:crm]) and driver[:crm] != ""
+
+    assigns =
+      assigns
+      |> assign(:driver, driver)
+      |> assign(:errors, errors)
+      |> assign(:insurers, insurers)
+      |> assign(:crm_known, crm_known)
+
     ~H"""
-    <form phx-change="autosave" class="space-y-4" id="driver-form">
+    <form phx-change="autosave" phx-submit="upload_releve" class="space-y-5" id="driver-form">
       <h2 class="text-xl font-semibold text-ink">{gettext("Driver profile")}</h2>
+
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <.input
+          name="step[birth_date]"
+          type="date"
+          label={gettext("Birth date")}
+          value={@driver[:birth_date]}
+          errors={@errors[:birth_date] || []}
+        />
+        <.input
+          name="step[license_date]"
+          type="date"
+          label={gettext("Licence date")}
+          value={@driver[:license_date]}
+          errors={@errors[:license_date] || []}
+        />
+      </div>
+
+      <fieldset class="space-y-2">
+        <legend class="text-sm font-medium text-ink">{gettext("Public servant?")}</legend>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <.option_card
+            name="step[is_public_servant]"
+            value="true"
+            label={gettext("Yes")}
+            selected={@driver[:is_public_servant] == true}
+          />
+          <.option_card
+            name="step[is_public_servant]"
+            value="false"
+            label={gettext("No")}
+            selected={@driver[:is_public_servant] == false}
+          />
+        </div>
+      </fieldset>
+
       <.input
-        name="step[birth_date]"
-        type="date"
-        label={gettext("Birth date")}
-        value={field_value(assigns.changeset, :birth_date)}
+        name="step[current_insurer_id]"
+        type="select"
+        label={gettext("Current insurer")}
+        options={insurer_options(@insurers)}
+        value={@driver[:current_insurer_id]}
+        prompt={gettext("None / First insurance")}
+        errors={@errors[:current_insurer_id] || []}
       />
-      <p class="text-sm text-ink/60">
-        {gettext("Step %{step} placeholder — driver form coming next.", step: assigns.current_step)}
-      </p>
+
+      <.input
+        name="step[current_expiry]"
+        type="date"
+        label={gettext("Current policy expiry date")}
+        value={@driver[:current_expiry]}
+        errors={@errors[:current_expiry] || []}
+      />
+
+      <fieldset class="space-y-2">
+        <legend class="text-sm font-medium text-ink">{gettext("At-fault claims in the last 36 months")}</legend>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <.option_card
+            name="step[at_fault_claims_36m]"
+            value="0"
+            label={gettext("0")}
+            selected={@driver[:at_fault_claims_36m] == "0"}
+          />
+          <.option_card
+            name="step[at_fault_claims_36m]"
+            value="1"
+            label={gettext("1")}
+            selected={@driver[:at_fault_claims_36m] == "1"}
+          />
+          <.option_card
+            name="step[at_fault_claims_36m]"
+            value="2_or_more"
+            label={gettext("2 or more")}
+            selected={@driver[:at_fault_claims_36m] == "2_or_more"}
+          />
+        </div>
+      </fieldset>
+
+      <div class="space-y-3 rounded-card border border-ink/10 bg-surface p-4">
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-medium text-ink">{gettext("Current CRM")}</span>
+          <label class="inline-flex items-center gap-2 text-sm text-ink/80">
+            <input
+              type="hidden"
+              name="step[crm]"
+              value={if @crm_known, do: @driver[:crm], else: ""}
+            />
+            <input
+              type="checkbox"
+              phx-click={JS.push("autosave", value: %{step: %{crm: ""}})}
+              checked={not @crm_known}
+              class="checkbox checkbox-sm"
+            />
+            {gettext("I don't know")}
+          </label>
+        </div>
+
+        <input
+          :if={@crm_known}
+          type="range"
+          name="step[crm]"
+          min="0.50"
+          max="2.50"
+          step="0.01"
+          value={@driver[:crm]}
+          class="w-full"
+        />
+        <p :if={@crm_known} class="text-sm font-medium text-primary">
+          {@driver[:crm]}
+        </p>
+      </div>
+
+      <div class="space-y-2">
+        <label class="block text-sm font-medium text-ink">
+          {gettext("Relevé d'information (optional)")}
+        </label>
+        <.live_file_input upload={@uploads.releve_doc} class="w-full input" accept="image/*,.pdf" />
+        <p class="text-xs text-ink/60">{gettext("Upload an image or PDF (max 8 MB).")}</p>
+
+        <div :for={entry <- @uploads.releve_doc.entries} class="space-y-1">
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-ink/80">{entry.client_name}</span>
+            <button
+              type="button"
+              phx-click="cancel-upload"
+              phx-value-ref={entry.ref}
+              class="text-error hover:underline"
+            >
+              {gettext("Cancel")}
+            </button>
+          </div>
+          <p :for={err <- upload_errors(@uploads.releve_doc, entry)} class="mt-1.5 text-sm text-error">
+            {err}
+          </p>
+        </div>
+
+        <div :if={@driver[:releve_doc_path]}>
+          <p class="text-sm text-ink/80">
+            {gettext("Uploaded document:")} {@driver[:releve_doc_meta]["original_name"] || @driver[:releve_doc_path]}
+          </p>
+        </div>
+      </div>
     </form>
     """
   end
@@ -935,6 +1134,35 @@ defmodule SahlaWeb.DevisLive do
     }
   end
 
+  defp driver_defaults(quote) do
+    at_fault =
+      case quote.at_fault_claims_36m do
+        nil -> ""
+        n when is_integer(n) and n >= 2 -> "2_or_more"
+        n -> to_string(n)
+      end
+
+    %{
+      birth_date: format_date(quote.birth_date),
+      license_date: format_date(quote.license_date),
+      is_public_servant: quote.is_public_servant || false,
+      current_insurer_id: safe_string_id(quote.current_insurer_id),
+      current_expiry: format_date(quote.current_expiry),
+      at_fault_claims_36m: at_fault,
+      crm: format_decimal(quote.crm),
+      releve_doc_path: quote.releve_doc_path || "",
+      releve_doc_meta: quote.releve_doc_meta_enc || %{}
+    }
+  end
+
+  defp format_decimal(nil), do: ""
+  defp format_decimal(%Decimal{} = d), do: Decimal.to_string(d)
+  defp format_decimal(value), do: to_string(value)
+
+  defp insurer_options(insurers) do
+    Enum.map(insurers, fn i -> {i.name_fr, to_string(i.id)} end)
+  end
+
   defp raw_phone(quote) do
     case quote.phone_enc do
       nil -> nil
@@ -970,11 +1198,6 @@ defmodule SahlaWeb.DevisLive do
     |> Map.new(fn {field, [first | _]} -> {field, [first]} end)
   end
 
-  defp field_value(nil, _field), do: ""
-
-  defp field_value(changeset, field) do
-    Ecto.Changeset.get_field(changeset, field) || ""
-  end
 
   defp step_label(:vehicle), do: gettext("Vehicle")
   defp step_label(:driver), do: gettext("Driver")
@@ -997,12 +1220,38 @@ defmodule SahlaWeb.DevisLive do
     params =
       params
       |> Map.new(fn {key, value} -> {key, value} end)
+      |> normalize_driver_params(step)
       |> strip_consent_fields(step)
 
     Map.update(params, "options", ["evcat"], fn opts ->
       opts = List.wrap(opts)
       if "evcat" in opts, do: opts, else: opts ++ ["evcat"]
     end)
+  end
+
+  defp normalize_driver_params(params, :driver) do
+    params
+    |> Map.update("at_fault_claims_36m", nil, fn
+      "2_or_more" -> "2"
+      value when is_binary(value) -> value
+      value -> value
+    end)
+    |> Map.update("is_public_servant", "false", fn
+      value when value in ["true", "false"] -> value
+      value when is_boolean(value) -> to_string(value)
+      _ -> "false"
+    end)
+    |> nil_if_empty("crm")
+    |> nil_if_empty("current_insurer_id")
+  end
+
+  defp normalize_driver_params(params, _step), do: params
+
+  defp nil_if_empty(params, key) do
+    case Map.get(params, key) do
+      "" -> Map.put(params, key, nil)
+      _ -> params
+    end
   end
 
   defp strip_consent_fields(params, :contact) do
@@ -1037,6 +1286,19 @@ defmodule SahlaWeb.DevisLive do
   end
 
   defp maybe_reset_otp_on_phone_change(socket, _step, _params), do: socket
+
+  defp allow_uploads(socket) do
+    allow_upload(socket, :releve_doc,
+      accept: ~w(.jpg .jpeg .png .gif .pdf),
+      max_entries: 1,
+      max_file_size: 8_000_000
+    )
+  end
+
+  defp upload_error_message(:too_large), do: gettext("File is too large (max 8 MB)")
+  defp upload_error_message(:disallowed_type), do: gettext("Only images and PDFs are accepted")
+  defp upload_error_message(:unknown_type), do: gettext("Only images and PDFs are accepted")
+  defp upload_error_message(_reason), do: gettext("Could not save file")
 
   defp can_continue?(:vehicle, quote, _changeset) do
     step = Quoting.validate_step(quote, :vehicle, Map.from_struct(quote) |> step_params())
