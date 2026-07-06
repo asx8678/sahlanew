@@ -23,12 +23,17 @@ defmodule Sahla.DirectoryTest do
       kind: :auto,
       formula: :tous_risques,
       name_fr: "Formule",
-      name_ar: "صيغة"
+      name_ar: "صيغة",
+      active: true
     }
 
-    %Product{}
-    |> Product.changeset(Map.merge(defaults, Map.new(attrs)))
-    |> Repo.insert!()
+    merged = Map.merge(defaults, Map.new(attrs))
+    changeset = Product.admin_changeset(%Product{}, merged)
+    Repo.insert!(changeset)
+  end
+
+  defp product_guarantees_loaded?(products) do
+    Enum.all?(products, fn p -> Ecto.assoc_loaded?(p.product_guarantees) end)
   end
 
   defp insert_guarantee(code) do
@@ -218,18 +223,26 @@ defmodule Sahla.DirectoryTest do
       assert Enum.map(Directory.list_active_insurers(), & &1.id) == [b.id, a.id]
     end
 
-    test "get_insurer_by_slug/1 finds by slug" do
-      insurer = insert_insurer(%{slug: "axa-maroc"})
-      assert Directory.get_insurer_by_slug("axa-maroc").id == insurer.id
+    test "get_active_insurer_by_slug/1 returns only active insurers" do
+      insert_insurer(%{slug: "axa-maroc", active: false})
+      active = insert_insurer(%{slug: "wafa", active: true})
+
+      assert Directory.get_active_insurer_by_slug("wafa").id == active.id
+      assert Directory.get_active_insurer_by_slug("axa-maroc") == nil
+      assert Directory.get_active_insurer_by_slug("missing") == nil
     end
 
-    test "list_products_for_insurer/1 scopes to the insurer" do
+    test "list_public_products_for_insurer/1 excludes inactive products and preloads the matrix" do
       insurer = insert_insurer()
-      other = insert_insurer()
+      _other = insert_insurer()
       product = insert_product(insurer)
-      _elsewhere = insert_product(other)
+      inactive = insert_product(insurer, %{active: false})
 
-      assert Enum.map(Directory.list_products_for_insurer(insurer.id), & &1.id) == [product.id]
+      results = Directory.list_public_products_for_insurer(insurer.id)
+
+      assert Enum.map(results, & &1.id) == [product.id]
+      assert inactive.id not in Enum.map(results, & &1.id)
+      assert product_guarantees_loaded?(results)
     end
   end
 end

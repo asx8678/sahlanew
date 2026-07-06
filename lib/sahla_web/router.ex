@@ -73,6 +73,8 @@ defmodule SahlaWeb.Router do
       live "/devis/new", DevisLive, :new
       live "/devis/:token", DevisLive, :show
       live "/offres/:token", OffersLive, :show
+      live "/assureurs", InsurersLive, :index
+      live "/assureurs/:slug", InsurersLive, :show
       live "/guides", GuidesLive, :index
       live "/guides/:slug", GuidesLive, :show
     end
@@ -86,6 +88,8 @@ defmodule SahlaWeb.Router do
       live "/devis/new", DevisLive, :new
       live "/devis/:token", DevisLive, :show
       live "/offres/:token", OffersLive, :show
+      live "/assureurs", InsurersLive, :index
+      live "/assureurs/:slug", InsurersLive, :show
       live "/guides", GuidesLive, :index
       live "/guides/:slug", GuidesLive, :show
     end

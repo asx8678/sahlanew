@@ -41,6 +41,17 @@ defmodule Sahla.Directory do
 
   def get_insurer_by_slug(slug), do: Repo.get_by(Insurer, slug: slug)
 
+  @doc """
+  Active insurer by `slug` for public profile pages. Inactive insurers are
+  invisible to the public path (returns `nil`), so an inactive or missing slug
+  renders the branded 404 rather than a private profile.
+  """
+  def get_active_insurer_by_slug(slug) do
+    Insurer
+    |> where([i], i.slug == ^slug and i.active == true)
+    |> Repo.one()
+  end
+
   @default_insurers [
     %{slug: "wafa", name_fr: "Wafa Assurance", name_ar: "وفا للتأمين", position: 1},
     %{slug: "rma", name_fr: "RMA Watanya", name_ar: "الوطنية للتأمين", position: 2},
@@ -156,6 +167,18 @@ defmodule Sahla.Directory do
     Product
     |> where([p], p.insurer_id == ^insurer_id)
     |> order_by([p], asc: p.name_fr, desc: p.id)
+    |> Repo.all()
+  end
+
+  @doc """
+  Active products for `insurer_id` with their guarantee matrix preloaded, for
+  the public profile page. Inactive products are hidden from the public path.
+  """
+  def list_public_products_for_insurer(insurer_id) do
+    Product
+    |> where([p], p.insurer_id == ^insurer_id and p.active == true)
+    |> order_by([p], asc: p.name_fr, desc: p.id)
+    |> preload([p], [:product_guarantees])
     |> Repo.all()
   end
 
