@@ -90,6 +90,8 @@ jobs:
 
       - name: Sobelow (security static analysis)
         run: mix sobelow --exit
+      - name: RTL physical-direction guard
+        run: mix rtl.grep
 
       - name: Test
         run: mix test

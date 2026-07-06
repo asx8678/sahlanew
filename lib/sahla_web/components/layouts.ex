@@ -337,7 +337,7 @@ defmodule SahlaWeb.Layouts do
         hidden
       >
         {gettext("Attempting to reconnect")}
-        <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
+        <.icon name="hero-arrow-path" class="ms-1 size-3 motion-safe:animate-spin" />
       </.flash>
 
       <.flash
@@ -349,7 +349,7 @@ defmodule SahlaWeb.Layouts do
         hidden
       >
         {gettext("Attempting to reconnect")}
-        <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
+        <.icon name="hero-arrow-path" class="ms-1 size-3 motion-safe:animate-spin" />
       </.flash>
     </div>
     """
@@ -369,7 +369,7 @@ defmodule SahlaWeb.Layouts do
         <%= for {{label, path}, idx} <- Enum.with_index(@breadcrumbs) do %>
           <li class="flex items-center gap-1">
             <%= if idx > 0 do %>
-              <.icon name="hero-chevron-right" class="size-4 shrink-0" />
+              <.icon name="hero-chevron-right" class="size-4 shrink-0 rtl:rotate-180" />
             <% end %>
             <%= if idx == length(@breadcrumbs) - 1 and not is_nil(path) do %>
               <.link

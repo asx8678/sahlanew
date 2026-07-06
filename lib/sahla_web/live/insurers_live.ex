@@ -292,7 +292,7 @@ defmodule SahlaWeb.InsurersLive do
         <caption class="sr-only">{gettext("Guarantees matrix by product")}</caption>
         <thead class="bg-ink/5">
           <tr>
-            <th scope="col" class="px-4 py-3 text-left font-semibold text-ink">
+            <th scope="col" class="px-4 py-3 text-start font-semibold text-ink">
               {gettext("Guarantee")}
             </th>
             <th
@@ -306,7 +306,7 @@ defmodule SahlaWeb.InsurersLive do
         </thead>
         <tbody class="divide-y divide-ink/10">
           <tr :for={guarantee <- @guarantees}>
-            <th scope="row" class="px-4 py-3 text-left font-medium text-ink">
+            <th scope="row" class="px-4 py-3 text-start font-medium text-ink">
               {guarantee_name(guarantee, @locale)}
             </th>
             <td :for={product <- @products} class="px-4 py-3 text-center">

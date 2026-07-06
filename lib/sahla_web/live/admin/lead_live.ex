@@ -254,7 +254,7 @@ defmodule SahlaWeb.Admin.LeadLive do
           <.badge variant={Map.fetch!(@status_variants, @lead.status)}>
             {Map.fetch!(@status_labels, @lead.status)}
           </.badge>
-          <span :if={@lead.callback_at} class="ml-2 text-sm text-ink/70">
+          <span :if={@lead.callback_at} class="ms-2 text-sm text-ink/70">
             {gettext("Callback:")} {format_datetime(@lead.callback_at)}
           </span>
         </:subtitle>

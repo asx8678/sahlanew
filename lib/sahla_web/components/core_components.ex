@@ -623,7 +623,7 @@ defmodule SahlaWeb.CoreComponents do
   ## Examples
 
       <.icon name="hero-x-mark" />
-      <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
+      <.icon name="hero-arrow-path" class="ms-1 size-3 motion-safe:animate-spin" />
   """
   attr :name, :string, required: true
   attr :class, :any, default: "size-4"
