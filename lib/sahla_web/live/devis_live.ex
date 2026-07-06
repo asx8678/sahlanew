@@ -20,6 +20,7 @@ defmodule SahlaWeb.DevisLive do
   alias Sahla.Directory
   alias Sahla.Quoting
   alias Sahla.Quoting.Enums
+  alias Sahla.Telemetry.Funnel, as: FunnelTelemetry
   alias Sahla.Uploads
   alias Sahla.Vehicles
   alias Sahla.Vehicles.Catalog
@@ -116,15 +117,23 @@ defmodule SahlaWeb.DevisLive do
       current < @step_count ->
         next_step = current + 1
         {:ok, quote} = update_step(socket.assigns.quote, next_step)
+        next_atom = step_atom(next_step)
+
+        FunnelTelemetry.step_completed(
+          quote.token,
+          next_atom,
+          next_step,
+          socket.assigns.locale
+        )
 
         socket =
           socket
           |> assign(:current_step, next_step)
-          |> assign(:step, step_atom(next_step))
+          |> assign(:step, next_atom)
           |> assign(:quote, quote)
           |> assign(:changeset, nil)
           |> assign(:turnstile_token, nil)
-          |> maybe_allow_uploads(step_atom(next_step))
+          |> maybe_allow_uploads(next_atom)
 
         {:noreply, socket}
 
@@ -302,6 +311,8 @@ defmodule SahlaWeb.DevisLive do
     if is_binary(phone) do
       case OTP.verify_otp(quote, phone, code) do
         {:ok, _quote} ->
+          FunnelTelemetry.otp_verified(quote.token, socket.assigns.locale)
+
           {:noreply,
            socket
            |> assign(:quote, Quoting.get_quote_by_token(quote.token))

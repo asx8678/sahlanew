@@ -23,6 +23,7 @@ defmodule Sahla.Leads do
   alias Sahla.Leads.{Activity, Lead, Pipeline}
   alias Sahla.Quoting.Quote
   alias Sahla.Repo
+  alias Sahla.Telemetry.Funnel, as: FunnelTelemetry
 
   @pubsub Sahla.PubSub
   @topic "leads"
@@ -220,6 +221,17 @@ defmodule Sahla.Leads do
       {:ok, record} -> record
       {:error, changeset} -> Repo.rollback(changeset)
     end
+  end
+
+  defp emit({:ok, lead}, :created) do
+    FunnelTelemetry.lead_created(
+      to_string(lead.id),
+      to_string(lead.quote_id),
+      to_string(lead.source || "site")
+    )
+
+    broadcast(:created, lead)
+    {:ok, lead}
   end
 
   defp emit({:ok, lead}, event) do

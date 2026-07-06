@@ -58,6 +58,40 @@ defmodule Sahla.Leads.ContextTest do
       assert activity.metadata["event"] == "created"
     end
 
+    test "emits a [:sahla, :funnel, :lead_created] telemetry event with non-PII metadata" do
+      id = {__MODULE__, :lead_created, make_ref()}
+      parent = self()
+
+      :telemetry.attach(
+        id,
+        [:sahla, :funnel, :lead_created],
+        fn _name, measurements, metadata, _config ->
+          send(parent, {:lead_created, measurements, metadata})
+        end,
+        nil
+      )
+
+      quote = quote_fixture()
+      assert {:ok, lead} = Leads.create_from_quote(quote, %{source: "google"})
+
+      assert_received {:lead_created, measurements, metadata}
+      assert measurements == %{count: 1}
+
+      assert metadata == %{
+               lead_id: to_string(lead.id),
+               quote_id: to_string(quote.id),
+               source: "google"
+             }
+
+      # Non-PII only — no contact fields leak into the telemetry metadata.
+      refute Map.has_key?(metadata, :phone)
+      refute Map.has_key?(metadata, :first_name)
+      refute Map.has_key?(metadata, :last_name)
+      refute Map.has_key?(metadata, :email)
+
+      :telemetry.detach(id)
+    end
+
     test "falls back to the quote's utm source when :source is not given" do
       quote = quote_fixture(%{utm: %{"utm_source" => "facebook"}})
       assert {:ok, lead} = Leads.create_from_quote(quote)
