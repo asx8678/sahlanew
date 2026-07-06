@@ -26,8 +26,6 @@ defmodule SahlaWeb.DevisLive do
   @steps Quoting.steps()
   @step_count length(@steps)
 
-
-
   @impl true
   def mount(%{"token" => token}, _session, socket) do
     socket =
@@ -118,10 +116,11 @@ defmodule SahlaWeb.DevisLive do
         |> assign(:step, step_atom(next_step))
         |> assign(:quote, quote)
         |> assign(:changeset, nil)
+        |> maybe_allow_uploads(step_atom(next_step))
 
       {:noreply, socket}
     else
-      {:noreply, socket}
+      complete_and_redirect(socket)
     end
   end
 
@@ -137,7 +136,8 @@ defmodule SahlaWeb.DevisLive do
        |> assign(:current_step, prev_step)
        |> assign(:step, step_atom(prev_step))
        |> assign(:quote, quote)
-       |> assign(:changeset, nil)}
+       |> assign(:changeset, nil)
+       |> maybe_allow_uploads(step_atom(prev_step))}
     else
       {:noreply, socket}
     end
@@ -304,11 +304,15 @@ defmodule SahlaWeb.DevisLive do
 
   # --- Consent capture -------------------------------------------------------
 
-  def handle_event("capture_consents", %{
-        "consent_cgu" => cgu,
-        "consent_transmission" => transmission,
-        "consent_marketing" => marketing
-      }, socket) do
+  def handle_event(
+        "capture_consents",
+        %{
+          "consent_cgu" => cgu,
+          "consent_transmission" => transmission,
+          "consent_marketing" => marketing
+        },
+        socket
+      ) do
     quote = socket.assigns.quote
 
     case Compliance.capture_consents(quote, %{
@@ -459,7 +463,9 @@ defmodule SahlaWeb.DevisLive do
         <span class="text-sm font-medium text-ink">{gettext("New vehicle / hors-série (WW)")}</span>
         <button
           type="button"
-          phx-click={JS.push("autosave", value: %{step: %{is_new_ww: to_string(!@vehicle[:is_new_ww])}})}
+          phx-click={
+            JS.push("autosave", value: %{step: %{is_new_ww: to_string(!@vehicle[:is_new_ww])}})
+          }
           class={[
             "relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
             @vehicle[:is_new_ww] && "bg-primary",
@@ -468,13 +474,11 @@ defmodule SahlaWeb.DevisLive do
           role="switch"
           aria-checked={to_string(@vehicle[:is_new_ww])}
         >
-          <span
-            class={[
-              "inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
-              @vehicle[:is_new_ww] && "translate-x-5",
-              !@vehicle[:is_new_ww] && "translate-x-0"
-            ]}
-          />
+          <span class={[
+            "inline-block h-6 w-6 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+            @vehicle[:is_new_ww] && "translate-x-5",
+            !@vehicle[:is_new_ww] && "translate-x-0"
+          ]} />
         </button>
       </div>
 
@@ -543,7 +547,9 @@ defmodule SahlaWeb.DevisLive do
 
       <button
         type="button"
-        phx-click={JS.push("autosave", value: %{step: %{autocomplete: to_string(!@vehicle[:autocomplete])}})}
+        phx-click={
+          JS.push("autosave", value: %{step: %{autocomplete: to_string(!@vehicle[:autocomplete])}})
+        }
         class="text-sm font-medium text-primary hover:underline"
       >
         <%= if @vehicle[:autocomplete] do %>
@@ -785,7 +791,9 @@ defmodule SahlaWeb.DevisLive do
       />
 
       <fieldset class="space-y-2">
-        <legend class="text-sm font-medium text-ink">{gettext("At-fault claims in the last 36 months")}</legend>
+        <legend class="text-sm font-medium text-ink">
+          {gettext("At-fault claims in the last 36 months")}
+        </legend>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <.option_card
             name="step[at_fault_claims_36m]"
@@ -868,7 +876,8 @@ defmodule SahlaWeb.DevisLive do
 
         <div :if={@driver[:releve_doc_path]}>
           <p class="text-sm text-ink/80">
-            {gettext("Uploaded document:")} {@driver[:releve_doc_meta]["original_name"] || @driver[:releve_doc_path]}
+            {gettext("Uploaded document:")} {@driver[:releve_doc_meta]["original_name"] ||
+              @driver[:releve_doc_path]}
           </p>
         </div>
       </div>
@@ -954,7 +963,6 @@ defmodule SahlaWeb.DevisLive do
               autocomplete="one-time-code"
             />
           </div>
-
         <% end %>
 
         <label :if={not @verified} class="block space-y-1">
@@ -976,21 +984,38 @@ defmodule SahlaWeb.DevisLive do
         <legend class="text-sm font-medium text-ink">{gettext("Consents")}</legend>
 
         <label class="flex items-start gap-3 rounded-card border border-ink/10 bg-surface p-3">
-          <input type="checkbox" name="consent_cgu" value="true" class="checkbox checkbox-sm mt-0.5" required />
+          <input
+            type="checkbox"
+            name="consent_cgu"
+            value="true"
+            class="checkbox checkbox-sm mt-0.5"
+            required
+          />
           <span class="text-sm text-ink/80">
             {gettext("I accept the CGU and privacy policy")} *
           </span>
         </label>
 
         <label class="flex items-start gap-3 rounded-card border border-ink/10 bg-surface p-3">
-          <input type="checkbox" name="consent_transmission" value="true" class="checkbox checkbox-sm mt-0.5" required />
+          <input
+            type="checkbox"
+            name="consent_transmission"
+            value="true"
+            class="checkbox checkbox-sm mt-0.5"
+            required
+          />
           <span class="text-sm text-ink/80">
             {gettext("I agree to share my data with partner insurers")} *
           </span>
         </label>
 
         <label class="flex items-start gap-3 rounded-card border border-ink/10 bg-surface p-3">
-          <input type="checkbox" name="consent_marketing" value="true" class="checkbox checkbox-sm mt-0.5" />
+          <input
+            type="checkbox"
+            name="consent_marketing"
+            value="true"
+            class="checkbox checkbox-sm mt-0.5"
+          />
           <span class="text-sm text-ink/80">
             {gettext("I agree to receive offers and news (optional)")}
           </span>
@@ -1031,7 +1056,10 @@ defmodule SahlaWeb.DevisLive do
         autocomplete="off"
       />
       <input type="hidden" name="step[#{@name}_id]" value={@selected_id} />
-      <ul :if={@suggestions != []} class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-card border border-ink/10 bg-surface shadow-soft">
+      <ul
+        :if={@suggestions != []}
+        class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-card border border-ink/10 bg-surface shadow-soft"
+      >
         <li
           :for={item <- @suggestions}
           class="cursor-pointer px-3 py-2 text-sm hover:bg-bg"
@@ -1053,14 +1081,12 @@ defmodule SahlaWeb.DevisLive do
 
   defp coverage_option(assigns) do
     ~H"""
-    <label
-      class={[
-        "group relative flex cursor-pointer items-center gap-3 rounded-card border-2 p-4 transition-colors",
-        @checked && !@disabled && "border-primary bg-primary/5",
-        !@checked && !@disabled && "border-ink/10 bg-surface hover:border-ink/20",
-        @disabled && "cursor-default border-ink/10 bg-surface opacity-80"
-      ]}
-    >
+    <label class={[
+      "group relative flex cursor-pointer items-center gap-3 rounded-card border-2 p-4 transition-colors",
+      @checked && !@disabled && "border-primary bg-primary/5",
+      !@checked && !@disabled && "border-ink/10 bg-surface hover:border-ink/20",
+      @disabled && "cursor-default border-ink/10 bg-surface opacity-80"
+    ]}>
       <input
         type="checkbox"
         name="step[options][]"
@@ -1165,12 +1191,15 @@ defmodule SahlaWeb.DevisLive do
 
   defp raw_phone(quote) do
     case quote.phone_enc do
-      nil -> nil
+      nil ->
+        nil
+
       <<1, _::binary>> = enc ->
         case Sahla.Encrypted.Binary.load(enc) do
           {:ok, phone} -> phone
           _ -> nil
         end
+
       phone ->
         # Fallback for rows that store the phone in plaintext (legacy / test fixtures).
         phone
@@ -1197,7 +1226,6 @@ defmodule SahlaWeb.DevisLive do
     end)
     |> Map.new(fn {field, [first | _]} -> {field, [first]} end)
   end
-
 
   defp step_label(:vehicle), do: gettext("Vehicle")
   defp step_label(:driver), do: gettext("Driver")
@@ -1260,8 +1288,14 @@ defmodule SahlaWeb.DevisLive do
 
   defp strip_consent_fields(params, _step), do: params
 
-  defp maybe_record_unmatched(%{"autocomplete" => "false", "raw_make" => make, "raw_model" => model, "raw_version" => version})
-       when is_binary(make) and make != "" and is_binary(model) and model != "" and is_binary(version) and version != "" do
+  defp maybe_record_unmatched(%{
+         "autocomplete" => "false",
+         "raw_make" => make,
+         "raw_model" => model,
+         "raw_version" => version
+       })
+       when is_binary(make) and make != "" and is_binary(model) and model != "" and
+              is_binary(version) and version != "" do
     Vehicles.record_unmatched(%{raw_make: make, raw_model: model, raw_version: version})
   end
 
@@ -1295,10 +1329,34 @@ defmodule SahlaWeb.DevisLive do
     )
   end
 
+  defp maybe_allow_uploads(socket, :driver), do: allow_uploads(socket)
+  defp maybe_allow_uploads(socket, _step), do: socket
+
   defp upload_error_message(:too_large), do: gettext("File is too large (max 8 MB)")
   defp upload_error_message(:disallowed_type), do: gettext("Only images and PDFs are accepted")
   defp upload_error_message(:unknown_type), do: gettext("Only images and PDFs are accepted")
   defp upload_error_message(_reason), do: gettext("Could not save file")
+
+  defp complete_and_redirect(socket) do
+    quote = socket.assigns.quote
+
+    case Quoting.complete_quote(quote) do
+      {:ok, %{quote: quote}} ->
+        {:noreply, socket |> assign(:quote, quote) |> redirect(to: ~p"/offres/#{quote.token}")}
+
+      {:error, :incomplete} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, gettext("Please complete all steps before continuing."))
+         |> assign(:changeset, nil)}
+
+      {:error, changeset} ->
+        {:noreply,
+         socket
+         |> put_flash(:error, format_changeset_errors(changeset))
+         |> assign(:changeset, nil)}
+    end
+  end
 
   defp can_continue?(:vehicle, quote, _changeset) do
     step = Quoting.validate_step(quote, :vehicle, Map.from_struct(quote) |> step_params())

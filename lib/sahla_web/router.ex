@@ -72,6 +72,7 @@ defmodule SahlaWeb.Router do
       get "/design/components", ComponentsController, :index
       live "/devis/new", DevisLive, :new
       live "/devis/:token", DevisLive, :show
+      live "/offres/:token", OffersLive, :show
       live "/guides", GuidesLive, :index
       live "/guides/:slug", GuidesLive, :show
     end
@@ -84,6 +85,7 @@ defmodule SahlaWeb.Router do
       get "/design/components", ComponentsController, :index
       live "/devis/new", DevisLive, :new
       live "/devis/:token", DevisLive, :show
+      live "/offres/:token", OffersLive, :show
       live "/guides", GuidesLive, :index
       live "/guides/:slug", GuidesLive, :show
     end

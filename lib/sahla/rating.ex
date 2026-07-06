@@ -19,6 +19,16 @@ defmodule Sahla.Rating do
   @drop_keys @pii_keys ++ [:catalog]
 
   @doc """
+  Fetches a rating run and preloads its persisted offers and related insurer
+  and product records.
+  """
+  def get_run_with_offers(run_id) do
+    Run
+    |> Repo.get!(run_id)
+    |> Repo.preload(offers: [:insurer, :product])
+  end
+
+  @doc """
   Persists a rating run and its offers atomically and links the quote.
 
   `meta` is `%{engine_version, table_versions, inputs, duration_us}`. A failure

@@ -158,7 +158,11 @@ defmodule SahlaWeb.DevisLiveTest do
     assert reloaded.parking == :garage
   end
 
-  test "step 1 autocomplete pick prefills make/version", %{conn: conn, make: make, version: version} do
+  test "step 1 autocomplete pick prefills make/version", %{
+    conn: conn,
+    make: make,
+    version: version
+  } do
     {:ok, quote} = Quoting.create_quote(%{locale: "fr"})
 
     {:ok, lv, _html} = live(conn, ~p"/devis/#{quote.token}")
@@ -196,9 +200,75 @@ defmodule SahlaWeb.DevisLiveTest do
       }
     })
 
-    assert Vehicles.list_unmatched() |> Enum.any?(fn u ->
-      u.raw_make == "Dacia" && u.raw_model == "Logan"
-    end)
+    assert Vehicles.list_unmatched()
+           |> Enum.any?(fn u ->
+             u.raw_make == "Dacia" && u.raw_model == "Logan"
+           end)
+  end
+
+  test "funnel steps 1-3 completable on seeds with autocomplete, option cards and resume", %{
+    conn: conn,
+    city: city,
+    version: version
+  } do
+    {:ok, quote} = Quoting.create_quote(%{locale: "fr"})
+
+    {:ok, lv, _html} = live(conn, ~p"/devis/#{quote.token}")
+
+    # Step 1: vehicle via option cards and version pick.
+    lv
+    |> element("#vehicle-form")
+    |> render_change(%{
+      step: %{
+        usage: "personnel",
+        city_id: city.id,
+        parking: "garage",
+        fuel: "diesel",
+        fiscal_power: "5",
+        first_registration: "2018-01-01",
+        version_id: version.id
+      }
+    })
+
+    lv |> element("button[phx-click='continue']") |> render_click()
+    assert Quoting.get_quote_by_token(quote.token).current_step == 2
+
+    # Step 2: driver.
+    lv
+    |> element("#driver-form")
+    |> render_change(%{
+      step: %{
+        birth_date: "1990-01-01",
+        license_date: "2010-01-01",
+        is_public_servant: "false",
+        at_fault_claims_36m: "0"
+      }
+    })
+
+    lv |> element("button[phx-click='continue']") |> render_click()
+    assert Quoting.get_quote_by_token(quote.token).current_step == 3
+
+    # Step 3: coverage.
+    lv
+    |> element("#coverage-form")
+    |> render_change(%{
+      step: %{
+        formula: "tiers_etendu",
+        options: ["vol"],
+        franchise_pref: "standard",
+        effect_date: Date.to_iso8601(Date.utc_today())
+      }
+    })
+
+    lv |> element("button[phx-click='continue']") |> render_click()
+    reloaded = Quoting.get_quote_by_token(quote.token)
+    assert reloaded.current_step == 4
+    assert reloaded.formula == :tiers_etendu
+    assert "vol" in reloaded.options
+
+    # Resume at step 4 by reopening the same token.
+    {:ok, _lv2, html2} = live(conn, ~p"/devis/#{quote.token}")
+    assert html2 =~ "Contact details"
   end
 
   test "step 3 formula switch persists and EVCAT stays selected", %{conn: conn} do
@@ -376,7 +446,10 @@ defmodule SahlaWeb.DevisLiveTest do
 
   test "step 2 relevé upload stores private path and encrypted metadata", %{conn: conn} do
     dir =
-      Path.join(System.tmp_dir!(), "sahla_devis_upload_test_#{System.unique_integer([:positive])}")
+      Path.join(
+        System.tmp_dir!(),
+        "sahla_devis_upload_test_#{System.unique_integer([:positive])}"
+      )
 
     Application.put_env(:sahla, :uploads_dir, dir)
     on_exit(fn -> File.rm_rf(dir) end)
@@ -398,11 +471,14 @@ defmodule SahlaWeb.DevisLiveTest do
     })
 
     pdf = <<0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34, 0x0A>>
+
     lv
-    |> file_input("#driver-form", :releve_doc, [%{
-      name: "releve.pdf",
-      content: pdf
-    }])
+    |> file_input("#driver-form", :releve_doc, [
+      %{
+        name: "releve.pdf",
+        content: pdf
+      }
+    ])
     |> render_upload("releve.pdf")
 
     lv

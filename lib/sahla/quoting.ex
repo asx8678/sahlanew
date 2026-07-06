@@ -7,10 +7,14 @@ defmodule Sahla.Quoting do
   schema and persists only that step's fields onto the `quotes` row, returning
   field-keyed errors on failure. Expired quotes are not resumable.
   """
+  import Ecto.Changeset, only: [change: 2]
   import Ecto.Query, only: [from: 2]
 
+  alias Sahla.Compliance
   alias Sahla.Leads.Lead
-  alias Sahla.Quoting.{Quote, Steps}
+  alias Sahla.Quoting.{Offer, Quote, Steps}
+  alias Sahla.Rating
+  alias Sahla.Rating.{Engine, Fixtures, Tables}
   alias Sahla.Repo
 
   # Ordered funnel steps. The atom is the public API; the integer is `current_step`.
@@ -109,6 +113,204 @@ defmodule Sahla.Quoting do
 
   def validate_step(%Quote{}, :contact, params) do
     Steps.Contact.changeset(%Steps.Contact{}, params)
+  end
+
+  @doc """
+  Completes a quote if all four steps are valid, runs the rating engine, and
+  persists an immutable snapshot plus offers. Sets `status` to `:completed`
+  and `rating_run_id` atomically.
+
+  Returns `{:ok, %{quote: quote, run: run, offers: offers}}` on success,
+  `{:error, :incomplete}` if any step is invalid, or `{:error, changeset}` if
+  the snapshot transaction fails.
+  """
+  def complete_quote(%Quote{status: :completed, rating_run_id: run_id} = quote)
+      when is_binary(run_id) do
+    run = Repo.get!(Rating.Run, run_id)
+    offers = Repo.all(from o in Offer, where: o.rating_run_id == ^run.id)
+    {:ok, %{quote: quote, run: run, offers: offers}}
+  end
+
+  def complete_quote(%Quote{} = quote) do
+    with :ok <- validate_all_steps(quote) do
+      run_and_snapshot(quote)
+    end
+  end
+
+  defp validate_all_steps(quote) do
+    consents = Compliance.consents_for(quote)
+
+    consent_map =
+      Map.new([:cgu, :transmission, :marketing], fn kind ->
+        granted = Enum.any?(consents, fn c -> c.kind == kind and c.granted end)
+        {consent_key(kind), granted}
+      end)
+
+    quote_fields =
+      quote
+      |> Map.from_struct()
+      |> Map.put(:phone, phone_from_quote(quote))
+      |> Map.merge(consent_map)
+      |> Map.take(step_field_names())
+
+    all_valid? =
+      Enum.all?(@step_names, fn step ->
+        params = Map.take(quote_fields, step_field_names(step))
+        validate_step(quote, step, params).valid?
+      end)
+
+    if all_valid?, do: :ok, else: {:error, :incomplete}
+  end
+
+  defp consent_key(:cgu), do: :consent_cgu
+  defp consent_key(:transmission), do: :consent_transmission
+  defp consent_key(:marketing), do: :consent_marketing
+
+  defp run_and_snapshot(quote) do
+    tables = Tables.load_all()
+    catalog = Fixtures.build_catalog()
+    inputs = build_engine_inputs(quote, catalog)
+
+    {duration_us, offers} =
+      :timer.tc(fn -> Engine.run(inputs, tables) end)
+
+    meta = %{
+      engine_version: Mix.Project.config()[:version],
+      table_versions: table_versions(tables),
+      inputs: inputs,
+      duration_us: duration_us
+    }
+
+    case Rating.snapshot(quote, offers, meta) do
+      {:ok, run} ->
+        quote =
+          quote
+          |> change(status: :completed)
+          |> Repo.update!()
+
+        {:ok, %{quote: quote, run: run, offers: offers}}
+
+      error ->
+        error
+    end
+  end
+
+  defp build_engine_inputs(quote, catalog) do
+    risk_zone = Sahla.Cities.get_risk_zone(quote.city_id)
+
+    %{
+      fiscal_power: quote.fiscal_power,
+      fuel: to_string(quote.fuel),
+      usage: to_string(quote.usage),
+      risk_zone: to_string(risk_zone),
+      vehicle_value_centimes: quote.vehicle_value_centimes,
+      franchise_pref: to_string(quote.franchise_pref),
+      options: quote.options || [],
+      is_public_servant: quote.is_public_servant,
+      license_date: quote.license_date,
+      at_fault_claims_36m: quote.at_fault_claims_36m,
+      crm: quote.crm,
+      today: Date.utc_today(),
+      catalog: catalog
+    }
+    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+    |> Map.new()
+  end
+
+  defp table_versions(tables) do
+    Map.new(tables, fn {code, data} ->
+      {to_string(code), get_in(data, ["version"])}
+    end)
+  end
+
+  defp step_field_names do
+    [
+      :plate,
+      :is_new_ww,
+      :make_id,
+      :model_id,
+      :version_id,
+      :fiscal_power,
+      :fuel,
+      :first_registration,
+      :vehicle_value_centimes,
+      :usage,
+      :city_id,
+      :parking,
+      :birth_date,
+      :license_date,
+      :is_public_servant,
+      :current_insurer_id,
+      :current_expiry,
+      :at_fault_claims_36m,
+      :crm,
+      :formula,
+      :options,
+      :franchise_pref,
+      :effect_date,
+      :first_name,
+      :last_name,
+      :phone,
+      :email,
+      :consent_cgu,
+      :consent_transmission,
+      :consent_marketing
+    ]
+  end
+
+  @step_fields %{
+    vehicle: [
+      :is_new_ww,
+      :plate,
+      :make_id,
+      :model_id,
+      :version_id,
+      :fiscal_power,
+      :fuel,
+      :first_registration,
+      :vehicle_value_centimes,
+      :usage,
+      :city_id,
+      :parking
+    ],
+    driver: [
+      :birth_date,
+      :license_date,
+      :is_public_servant,
+      :current_insurer_id,
+      :current_expiry,
+      :at_fault_claims_36m,
+      :crm
+    ],
+    coverage: [:formula, :options, :franchise_pref, :effect_date],
+    contact: [
+      :first_name,
+      :last_name,
+      :phone,
+      :email,
+      :city_id,
+      :consent_cgu,
+      :consent_transmission,
+      :consent_marketing
+    ]
+  }
+
+  defp step_field_names(step) when step in @step_names, do: Map.fetch!(@step_fields, step)
+
+  defp phone_from_quote(quote) do
+    case quote.phone_enc do
+      nil ->
+        nil
+
+      <<1, _::binary>> = enc ->
+        case Sahla.Encrypted.Binary.load(enc) do
+          {:ok, phone} -> phone
+          _ -> nil
+        end
+
+      phone ->
+        phone
+    end
   end
 
   @doc "Marks a quote expired (used by the abandonment sweeper). No longer resumable."
