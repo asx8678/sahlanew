@@ -1,0 +1,78 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+# Deploy pipeline (§13.3). Only the deploy job needs elevated permissions;
+# the build step itself only reads the repo.
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build release and deploy
+    # ERTS is bundled into the release and must match the server's OS.
+    # Never build releases on macOS; ubuntu-24.04 is the server baseline.
+    runs-on: ubuntu-24.04
+
+    env:
+      MIX_ENV: prod
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir/OTP
+        uses: erlef/setup-beam@v1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+
+      - name: Cache deps and _build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-prod-mix-${{ hashFiles('.tool-versions', 'mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-prod-mix-
+
+      - name: Install production dependencies
+        run: mix deps.get --only prod
+
+      # Tailwind + esbuild ship as Elixir packages; no Node installation is
+      # required for asset building (§13.3).
+      - name: Build assets
+        run: MIX_ENV=prod mix assets.deploy
+
+      - name: Build release
+        run: MIX_ENV=prod mix release
+
+      - name: Package release
+        run: tar -czf "sahla-${{ github.sha }}.tar.gz" -C _build/prod/rel sahla
+
+      - name: Copy release and run deploy
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+        run: |
+          # Write the deploy key to a temporary file and lock it down.
+          tmp_key="$(mktemp)"
+          printf '%s\n' "$DEPLOY_KEY" > "$tmp_key"
+          chmod 600 "$tmp_key"
+          trap 'rm -f "$tmp_key"' EXIT
+
+          host="${DEPLOY_USER}@${DEPLOY_HOST}"
+          ssh_opts="-i $tmp_key -o StrictHostKeyChecking=no -o BatchMode=yes -o IdentitiesOnly=yes"
+
+          scp $ssh_opts \
+            "sahla-${{ github.sha }}.tar.gz" \
+            "$host:/tmp/sahla-${{ github.sha }}.tar.gz"
+
+          ssh $ssh_opts "$host" "ops/deploy.sh ${{ github.sha }}"
