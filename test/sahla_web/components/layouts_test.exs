@@ -14,7 +14,10 @@ defmodule SahlaWeb.LayoutsTest do
   end
 
   test "app layout renders topbar, footer and main content", %{conn: conn} do
-    conn = get(conn, ~p"/")
+    # `/design-tokens` is a controller-rendered public page that wraps content
+    # in `Layouts.app`; `/` is a LiveView that renders its own chrome-less
+    # hero, so exercise the app layout through a controller route.
+    conn = get(conn, ~p"/design-tokens")
     html = html_response(conn, 200)
 
     assert html =~ Sahla.Settings.display_name()
@@ -24,7 +27,7 @@ defmodule SahlaWeb.LayoutsTest do
   end
 
   test "topbar has a navigation landmark", %{conn: conn} do
-    conn = get(conn, ~p"/")
+    conn = get(conn, ~p"/design-tokens")
     html = html_response(conn, 200)
     assert html =~ ~S(<nav)
   end

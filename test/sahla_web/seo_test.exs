@@ -24,7 +24,9 @@ defmodule SahlaWeb.SEOTest do
     end
 
     test "title falls back to Settings.display_name() when page_title is absent", %{conn: conn} do
-      conn = get(conn, ~p"/")
+      # `/` is now HomeLive, which always sets a page_title; `/design-tokens` is
+      # a controller-rendered page that sets none, so it exercises the fallback.
+      conn = get(conn, ~p"/design-tokens")
       html = html_response(conn, 200)
       brand = Sahla.Settings.display_name()
 
@@ -50,7 +52,9 @@ defmodule SahlaWeb.SEOTest do
     end
 
     test "omits description meta when meta_description is not set", %{conn: conn} do
-      conn = get(conn, ~p"/")
+      # `/` is HomeLive, which sets a meta_description; `/design-tokens` sets
+      # none, so it exercises the description-omitted path.
+      conn = get(conn, ~p"/design-tokens")
       html = html_response(conn, 200)
 
       refute html =~ ~r/<head>.*<meta[^>]+name="description"[^>]*>.*<\/head>/ms

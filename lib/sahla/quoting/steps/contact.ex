@@ -43,6 +43,5 @@ defmodule Sahla.Quoting.Steps.Contact do
     |> validate_format(:email, ~r/^[^@\s]+@[^@\s]+\.[^@\s]+$/, message: "is not a valid email")
     |> Steps.validate_accepted(:consent_cgu)
     |> Steps.validate_accepted(:consent_transmission)
-
   end
 end

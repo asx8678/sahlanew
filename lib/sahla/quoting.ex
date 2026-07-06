@@ -26,21 +26,32 @@ defmodule Sahla.Quoting do
   @utm_value_max 255
 
   @doc """
-  Creates a draft quote with a generated unique token. Accepts `:locale`, `:ip`,
-  `:user_agent` and a raw `:utm` map (sanitized to a known projection). The
-  citext unique index on `token` makes concurrent creates collision-safe.
+  Creates a draft quote with a generated unique token. Accepts `:locale`,
+  `:ip`, `:user_agent`, a raw `:utm` map (sanitized to a known projection),
+  and optional vehicle hints (`:plate`, `:is_new_ww`) so the homepage can
+  pre-fill the first funnel step. The citext unique index on `token` makes
+  concurrent creates collision-safe.
   """
   def create_quote(attrs \\ %{}) do
     attrs = Map.new(attrs)
 
-    %Quote{}
-    |> Quote.create_changeset(%{
+    base = %{
       locale: Map.get(attrs, :locale, "fr"),
       current_step: Map.get(attrs, :current_step, 1),
       ip: Map.get(attrs, :ip),
       user_agent: Map.get(attrs, :user_agent),
       utm: sanitize_utm(Map.get(attrs, :utm, %{}))
-    })
+    }
+
+    # The homepage front door may seed the vehicle step (plate or WW toggle);
+    # everything else flows through `upsert_step/3`.
+    vehicle_hints =
+      [:plate, :is_new_ww]
+      |> Enum.reject(fn key -> is_nil(Map.get(attrs, key)) end)
+      |> Map.new(fn key -> {key, Map.get(attrs, key)} end)
+
+    %Quote{}
+    |> Quote.create_changeset(Map.merge(base, vehicle_hints))
     |> Repo.insert()
   end
 

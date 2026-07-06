@@ -59,7 +59,8 @@ config :sahla, :brand_name, "Sahla"
 # Private upload storage (§12): outside priv/static, served by an authenticated
 # controller. Defaults to a system temp directory; production overrides via
 # runtime.exs / UPLOADS_DIR.
-config :sahla, :uploads_dir,
+config :sahla,
+       :uploads_dir,
        System.get_env("UPLOADS_DIR", Path.join([System.tmp_dir!(), "sahla_uploads"]))
 
 # i18n: French is the default UI language; Arabic is the second locale (§6.3).

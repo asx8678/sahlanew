@@ -150,7 +150,13 @@ defmodule SahlaWeb.Admin.LeadsLive.Index do
         </:subtitle>
       </.header>
 
-      <.filter_bar changeset={@filter_changeset} agents={@agents} sources={@sources} cities={@cities} formulas={@formulas} />
+      <.filter_bar
+        changeset={@filter_changeset}
+        agents={@agents}
+        sources={@sources}
+        cities={@cities}
+        formulas={@formulas}
+      />
 
       <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
         <.kanban_column
@@ -189,9 +195,27 @@ defmodule SahlaWeb.Admin.LeadsLive.Index do
           prompt={gettext("All agents")}
           options={@agents}
         />
-        <.input field={f[:source]} type="select" label={gettext("Source")} prompt={gettext("All sources")} options={@sources} />
-        <.input field={f[:city_id]} type="select" label={gettext("City")} prompt={gettext("All cities")} options={@cities} />
-        <.input field={f[:formula]} type="select" label={gettext("Formula")} prompt={gettext("All formulas")} options={@formulas} />
+        <.input
+          field={f[:source]}
+          type="select"
+          label={gettext("Source")}
+          prompt={gettext("All sources")}
+          options={@sources}
+        />
+        <.input
+          field={f[:city_id]}
+          type="select"
+          label={gettext("City")}
+          prompt={gettext("All cities")}
+          options={@cities}
+        />
+        <.input
+          field={f[:formula]}
+          type="select"
+          label={gettext("Formula")}
+          prompt={gettext("All formulas")}
+          options={@formulas}
+        />
         <.input field={f[:priority]} type="number" label={gettext("Min priority")} min="0" />
         <div class="grid grid-cols-2 gap-2">
           <.input field={f[:from]} type="date" label={gettext("From")} />
@@ -265,7 +289,11 @@ defmodule SahlaWeb.Admin.LeadsLive.Index do
   attr :lead, Lead, required: true
 
   defp lead_card(assigns) do
-    agent_name = if assigns.lead.assigned_admin, do: assigns.lead.assigned_admin.email, else: gettext("Unassigned")
+    agent_name =
+      if assigns.lead.assigned_admin,
+        do: assigns.lead.assigned_admin.email,
+        else: gettext("Unassigned")
+
     age = lead_age(assigns.lead.inserted_at)
     price = lead_price(assigns.lead)
 
@@ -595,7 +623,7 @@ defmodule SahlaWeb.Admin.LeadsLive.Index do
         n = div(diff_seconds, 3600)
         gettext("%{n} h", n: n)
 
-      diff_seconds < 604800 ->
+      diff_seconds < 604_800 ->
         n = div(diff_seconds, 86400)
         gettext("%{n} d", n: n)
 

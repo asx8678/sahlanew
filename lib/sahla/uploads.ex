@@ -107,7 +107,14 @@ defmodule Sahla.Uploads do
   defp sniff_content_type(_), do: {:error, :unknown_type}
 
   defp check_allowed(content_type, opts) do
-    allowed = Keyword.get(opts, :allowed_types, ["image/jpeg", "image/png", "image/gif", "image/bmp", "application/pdf"])
+    allowed =
+      Keyword.get(opts, :allowed_types, [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/bmp",
+        "application/pdf"
+      ])
 
     if content_type in allowed do
       :ok

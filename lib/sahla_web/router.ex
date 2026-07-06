@@ -67,7 +67,7 @@ defmodule SahlaWeb.Router do
     scope "/", SahlaWeb do
       pipe_through :browser
 
-      get "/", PageController, :home
+      live "/", HomeLive, :index
       get "/design-tokens", DesignTokenController, :index
       get "/design/components", ComponentsController, :index
       live "/devis/new", DevisLive, :new
@@ -80,7 +80,7 @@ defmodule SahlaWeb.Router do
     scope "/ar", SahlaWeb, as: :ar do
       pipe_through :browser
 
-      get "/", PageController, :home
+      live "/", HomeLive, :index
       get "/design-tokens", DesignTokenController, :index
       get "/design/components", ComponentsController, :index
       live "/devis/new", DevisLive, :new

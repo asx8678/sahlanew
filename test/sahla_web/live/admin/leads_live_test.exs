@@ -61,7 +61,12 @@ defmodule SahlaWeb.Admin.LeadsLiveTest do
   end
 
   defp city_id do
-    case Sahla.Cities.upsert_city(%{name_fr: "Casablanca", name_ar: "الدار البيضاء", region: "Casablanca-Settat", risk_zone: 2}) do
+    case Sahla.Cities.upsert_city(%{
+           name_fr: "Casablanca",
+           name_ar: "الدار البيضاء",
+           region: "Casablanca-Settat",
+           risk_zone: 2
+         }) do
       {:ok, city} -> city.id
       {:error, _} -> Sahla.Repo.get_by!(Sahla.Cities.City, name_fr: "Casablanca").id
     end

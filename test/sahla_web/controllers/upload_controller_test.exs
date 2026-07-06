@@ -12,7 +12,10 @@ defmodule SahlaWeb.UploadControllerTest do
 
   setup do
     dir =
-      Path.join(System.tmp_dir!(), "sahla_uploads_ctrl_test_#{System.unique_integer([:positive])}")
+      Path.join(
+        System.tmp_dir!(),
+        "sahla_uploads_ctrl_test_#{System.unique_integer([:positive])}"
+      )
 
     Application.put_env(:sahla, :uploads_dir, dir)
     on_exit(fn -> File.rm_rf(dir) end)

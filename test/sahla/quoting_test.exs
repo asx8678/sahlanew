@@ -70,6 +70,21 @@ defmodule Sahla.QuotingTest do
       refute Map.has_key?(quote.utm, "evil")
       refute Map.has_key?(quote.utm, "password")
     end
+
+    test "seeds optional vehicle hints (plate and WW toggle) from the homepage" do
+      {:ok, quote} = Quoting.create_quote(%{plate: "12345-A-67", is_new_ww: true})
+
+      assert quote.plate == "12345-A-67"
+      assert quote.is_new_ww == true
+      assert quote.current_step == 1
+    end
+
+    test "drops nil vehicle hints and keeps the defaults" do
+      {:ok, quote} = Quoting.create_quote(%{plate: nil, is_new_ww: nil})
+
+      assert quote.plate == nil
+      assert quote.is_new_ww == false
+    end
   end
 
   describe "get_quote_by_token/1" do
